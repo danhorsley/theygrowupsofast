@@ -239,7 +239,7 @@ LEVELS = [
 
 # ── Phase 5: fractal levels ──
 
-from fractal import build_spiral_fractal, build_multi_fractal
+from fractal import build_spiral_fractal, build_multi_fractal, build_key_fractal, build_gap_key_fractal
 
 LEVELS += [
     build_spiral_fractal(2, seg_len=2, seg_color=R, branch_color=Y, turn_color=B),
@@ -284,6 +284,41 @@ LEVELS += [
         ],
         "start": (-1, 0), "dir": RIGHT,
     },
+]
+
+# ── Phase 7: key puzzle + fractal reward ──
+
+LEVELS += [
+    # 22: Key puzzle + depth-2 fractal tail (44 layers, peak ~4)
+    build_key_fractal(fractal_depth=2),
+
+    # 23: Key puzzle + depth-3 fractal tail (72 layers, peak ~7)
+    build_key_fractal(fractal_depth=3),
+]
+
+# ── Phase 8: gap-based levels (air gaps for timing) ──
+
+LEVELS += [
+    # 24: Gap fork — standalone timing puzzle with air gaps
+    # Fewer cells, cleaner visuals, same timing mechanic
+    # R=Pass, Y=Dissolve, B=TurnRight
+    {
+        "cells": [
+            (0,0,R), (1,0,G), (2,0,(B,R)),
+            (6,0,(R,Y)),
+            (8,0,P),
+            (2,1,R), (2,3,R), (2,4,C),
+            (3,4,R), (6,4,C),
+            (6,3,R), (6,1,R),
+        ],
+        "start": (-1, 0), "dir": RIGHT,
+    },
+
+    # 25: Gap key + depth-2 fractal (39 layers, peak 4)
+    build_gap_key_fractal(fractal_depth=2),
+
+    # 26: Gap key + depth-3 fractal (69 layers, peak 7) — the big finale
+    build_gap_key_fractal(fractal_depth=3),
 ]
 
 NUM_LEVELS = len(LEVELS)

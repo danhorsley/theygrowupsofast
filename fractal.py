@@ -20,7 +20,8 @@
 # Different levels use different color mappings so the answer changes.
 
 R, Y, B = 1, 2, 3
-P = 6  # fixed dissolve
+G = 5   # fixed replicate
+P = 6   # fixed dissolve
 
 RIGHT = (1, 0)
 DOWN  = (0, 1)
@@ -123,13 +124,124 @@ def build_multi_fractal(n_branches, sub_depth, seg_len=2, trunk_seg=6,
         subtree(x + 1, 1, 0, 1, sub_depth)
         x += 2
 
-    # trunk ending
+    # trunk ending: seg cells + dissolve
     for j in range(trunk_seg):
         place(x + j, 0, seg_color)
     place(x + trunk_seg, 0, P)
 
     return {
         "cells": [(x, y, c) for (x, y), c in cells.items()],
+        "start": (-1, 0),
+        "dir": RIGHT,
+    }
+
+
+def build_key_fractal(fractal_depth, seg_len=2):
+    """
+    Key puzzle + fractal tail.
+
+    Key puzzle: agent replicates. Child takes a detour loop (delayed).
+    Parent goes straight, arrives at timing sandwich first, passes through.
+    Child arrives second, dissolves. Parent survives into fractal tail.
+
+    The fractal tail uses fixed G/O/P for branching — only R is assignable.
+    Solution: R=Pass, Y=Dissolve, B=TurnRight.
+
+    The player solves the small key puzzle. The fractal is the reward.
+    """
+    C_TL = 8  # fixed turn left
+
+    key = [
+        (0, 0, R), (1, 0, G), (2, 0, (B, R)),
+        (3, 0, R), (4, 0, (R, Y)),
+        (5, 0, R), (6, 0, R), (7, 0, R), (8, 0, R),
+        (2, 1, R), (2, 2, R), (2, 3, R), (2, 4, C_TL),
+        (3, 4, R), (4, 4, C_TL),
+        (4, 3, R), (4, 2, R), (4, 1, R),
+    ]
+
+    tail_cells = {}
+
+    def place(x, y, c):
+        tail_cells[(x, y)] = c
+
+    def branch(x, y, dx, dy, d):
+        for i in range(seg_len):
+            place(x + dx * i, y + dy * i, R)
+        ex, ey = x + dx * seg_len, y + dy * seg_len
+        if d == 0:
+            place(ex, ey, P)
+            return
+        place(ex, ey, G)
+        bx, by = ex + dx, ey + dy
+        place(bx, by, 7)  # O = fixed turn right
+        cdx, cdy = turn_right(dx, dy)
+        branch(bx + dx, by + dy, dx, dy, d - 1)
+        branch(bx + cdx, by + cdy, cdx, cdy, d - 1)
+
+    branch(9, 0, 1, 0, fractal_depth)
+
+    tail = [(x, y, c) for (x, y), c in tail_cells.items()]
+
+    return {
+        "cells": key + tail,
+        "start": (-1, 0),
+        "dir": RIGHT,
+    }
+
+
+def build_gap_key_fractal(fractal_depth, seg_len=2):
+    """
+    Key puzzle with air gaps + fractal tail.
+
+    Same timing puzzle as build_key_fractal but uses air gaps instead of R
+    padding. Fewer consumable cells, cleaner visuals, same timing.
+
+    Child loops: down → right → up (with gaps), rejoins at timing sandwich.
+    Parent goes straight through gaps, arrives first.
+
+    Solution: R=Pass, Y=Dissolve, B=TurnRight.
+    """
+    C_TL = 8
+
+    key = [
+        (0, 0, R), (1, 0, G), (2, 0, (B, R)),
+        # parent path: 3 gaps → timing sandwich at (6,0)
+        (6, 0, (R, Y)),
+        # child detour with gaps
+        (2, 1, R), (2, 3, R), (2, 4, C_TL),      # down, gap, turn
+        (3, 4, R), (6, 4, C_TL),                   # right with gaps, turn
+        (6, 3, R), (6, 1, R),                       # up with gap
+    ]
+
+    # fractal offset: depth 2 → 10, depth 3 → 12
+    frac_offset = 10 if fractal_depth <= 2 else 12
+    gap_cells = [(i, 0, R) for i in range(8, frac_offset)]
+
+    tail_cells = {}
+
+    def place(x, y, c):
+        tail_cells[(x, y)] = c
+
+    def branch(x, y, dx, dy, d):
+        for i in range(seg_len):
+            place(x + dx * i, y + dy * i, R)
+        ex, ey = x + dx * seg_len, y + dy * seg_len
+        if d == 0:
+            place(ex, ey, P)
+            return
+        place(ex, ey, G)
+        bx, by = ex + dx, ey + dy
+        place(bx, by, 7)  # O = fixed turn right
+        cdx, cdy = turn_right(dx, dy)
+        branch(bx + dx, by + dy, dx, dy, d - 1)
+        branch(bx + cdx, by + cdy, cdx, cdy, d - 1)
+
+    branch(frac_offset, 0, 1, 0, fractal_depth)
+    tail = [(x, y, c) for (x, y), c in tail_cells.items()]
+
+    return {
+        "cells": key + gap_cells + tail,
         "start": (-1, 0),
         "dir": RIGHT,
     }
