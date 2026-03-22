@@ -7,6 +7,7 @@
 
 import pygame
 import sys
+import os
 
 # ── layout ──
 
@@ -17,7 +18,7 @@ GRID_PX_W = GRID_W * CELL
 GRID_PX_H = GRID_H * CELL
 PANEL_W  = 280
 WIN_W    = GRID_PX_W + PANEL_W
-WIN_H    = max(GRID_PX_H, 580)
+WIN_H    = max(GRID_PX_H, 680)
 
 # ── cell types ──
 
@@ -33,15 +34,46 @@ FIXED_TURN_RIGHT = 7   # orange
 FIXED_TURN_LEFT  = 8   # cyan
 FIXED_PASS       = 9   # grey
 
+# editor-only cell types (not used in campaign, available for community levels)
+FIXED_REVERSE    = 10  # pink — agent reverses direction (180 turn)
+FIXED_SKIP       = 11  # lime — agent consumes but jumps over next cell
+FIXED_ONE_WAY_R  = 12  # white-right — passable going right, blocks other dirs
+FIXED_ONE_WAY_D  = 13  # white-down
+FIXED_ONE_WAY_L  = 14  # white-left
+FIXED_ONE_WAY_U  = 15  # white-up
+FIXED_TELEPORT_A = 16  # magenta — teleport entrance (paired with B)
+FIXED_TELEPORT_B = 17  # magenta — teleport exit
+
+# editor-only assignable colors (not used in campaign)
+WALL_PINK  = 18
+WALL_TEAL  = 19
+
 ASSIGNABLE_TYPES = (WALL_RED, WALL_YELLOW, WALL_BLUE)
+EDITOR_ASSIGNABLE = (WALL_PINK, WALL_TEAL)
+ALL_ASSIGNABLE = ASSIGNABLE_TYPES + EDITOR_ASSIGNABLE
 FIXED_TYPES = (FIXED_REPLICATE, FIXED_DISSOLVE, FIXED_TURN_RIGHT, FIXED_TURN_LEFT, FIXED_PASS)
-ALL_WALL_TYPES = ASSIGNABLE_TYPES + FIXED_TYPES
+EDITOR_EXTRA_TYPES = (FIXED_REVERSE, FIXED_SKIP,
+                      FIXED_ONE_WAY_R, FIXED_ONE_WAY_D, FIXED_ONE_WAY_L, FIXED_ONE_WAY_U,
+                      FIXED_TELEPORT_A, FIXED_TELEPORT_B)
+ALL_WALL_TYPES = ALL_ASSIGNABLE + FIXED_TYPES + EDITOR_EXTRA_TYPES
+
+ONE_WAY_TYPES = (FIXED_ONE_WAY_R, FIXED_ONE_WAY_D, FIXED_ONE_WAY_L, FIXED_ONE_WAY_U)
+ONE_WAY_DIR = {
+    FIXED_ONE_WAY_R: (1, 0), FIXED_ONE_WAY_D: (0, 1),
+    FIXED_ONE_WAY_L: (-1, 0), FIXED_ONE_WAY_U: (0, -1),
+}
+TELEPORT_TYPES = (FIXED_TELEPORT_A, FIXED_TELEPORT_B)
 
 COLOR_NAMES = {
     WALL_RED: "Red", WALL_YELLOW: "Yellow", WALL_BLUE: "Blue",
     FIXED_REPLICATE: "Green", FIXED_DISSOLVE: "Purple",
     FIXED_TURN_RIGHT: "Orange", FIXED_TURN_LEFT: "Cyan",
     FIXED_PASS: "Grey",
+    FIXED_REVERSE: "Reverse", FIXED_SKIP: "Skip",
+    FIXED_ONE_WAY_R: "Gate R", FIXED_ONE_WAY_D: "Gate D",
+    FIXED_ONE_WAY_L: "Gate L", FIXED_ONE_WAY_U: "Gate U",
+    FIXED_TELEPORT_A: "Tele A", FIXED_TELEPORT_B: "Tele B",
+    WALL_PINK: "Pink", WALL_TEAL: "Teal",
 }
 
 # ── verbs ──
@@ -51,7 +83,10 @@ VERB_REPLICATE  = 1
 VERB_DISSOLVE   = 2
 VERB_TURN_LEFT  = 3
 VERB_TURN_RIGHT = 4
-VERB_COUNT      = 5
+VERB_REVERSE    = 5
+VERB_SKIP       = 6
+VERB_WAIT       = 7
+VERB_COUNT      = 5  # campaign uses 5 verbs; editor uses all 8
 
 VERB_NAMES = {
     VERB_PASS:       "Pass",
@@ -59,6 +94,9 @@ VERB_NAMES = {
     VERB_DISSOLVE:   "Dissolve",
     VERB_TURN_LEFT:  "Turn Left",
     VERB_TURN_RIGHT: "Turn Right",
+    VERB_REVERSE:    "Reverse",
+    VERB_SKIP:       "Skip",
+    VERB_WAIT:       "Wait",
 }
 
 FIXED_VERB = {
@@ -67,12 +105,17 @@ FIXED_VERB = {
     FIXED_DISSOLVE:   VERB_DISSOLVE,
     FIXED_TURN_LEFT:  VERB_TURN_LEFT,
     FIXED_TURN_RIGHT: VERB_TURN_RIGHT,
+    FIXED_REVERSE:    VERB_REVERSE,
+    FIXED_SKIP:       VERB_SKIP,
 }
 
 FIXED_LABEL = {
     FIXED_REPLICATE: "Replicate", FIXED_DISSOLVE: "Dissolve",
     FIXED_TURN_RIGHT: "Turn Right", FIXED_TURN_LEFT: "Turn Left",
-    FIXED_PASS: "Pass",
+    FIXED_PASS: "Pass", FIXED_REVERSE: "Reverse", FIXED_SKIP: "Skip",
+    FIXED_ONE_WAY_R: "Gate Right", FIXED_ONE_WAY_D: "Gate Down",
+    FIXED_ONE_WAY_L: "Gate Left", FIXED_ONE_WAY_U: "Gate Up",
+    FIXED_TELEPORT_A: "Teleport In", FIXED_TELEPORT_B: "Teleport Out",
 }
 
 # ── tuning ──
@@ -94,6 +137,16 @@ STATUS_RED     = (220, 70, 70)
 AGENT_COLOR    = (70, 210, 120)
 AGENT_DOT      = (200, 255, 200)
 
+# per-agent team colors (for multi-rule levels)
+TEAM_COLORS = [
+    (70, 210, 120),   # team 0: green (same as default)
+    (100, 160, 255),  # team 1: blue
+    (255, 160, 80),   # team 2: orange
+    (220, 120, 200),  # team 3: pink
+]
+TEAM_NAMES = ["A", "B", "C", "D"]
+EVIL_COLOR = (220, 50, 50)  # red for evil agents in intercept mode
+
 WCOLOR = {
     WALL_RED:        (200, 60, 60),
     WALL_YELLOW:     (210, 195, 50),
@@ -103,6 +156,16 @@ WCOLOR = {
     FIXED_TURN_RIGHT:(220, 130, 40),
     FIXED_TURN_LEFT: (50, 180, 200),
     FIXED_PASS:      (90, 90, 100),
+    FIXED_REVERSE:   (220, 100, 160),
+    FIXED_SKIP:      (160, 220, 60),
+    FIXED_ONE_WAY_R: (180, 180, 190),
+    FIXED_ONE_WAY_D: (180, 180, 190),
+    FIXED_ONE_WAY_L: (180, 180, 190),
+    FIXED_ONE_WAY_U: (180, 180, 190),
+    FIXED_TELEPORT_A:(200, 80, 220),
+    FIXED_TELEPORT_B:(200, 80, 220),
+    WALL_PINK:       (220, 120, 160),
+    WALL_TEAL:       (60, 180, 170),
 }
 
 VERB_COLOR = {
@@ -111,6 +174,9 @@ VERB_COLOR = {
     VERB_DISSOLVE:   (220, 160, 50),
     VERB_TURN_LEFT:  (70, 180, 220),
     VERB_TURN_RIGHT: (180, 100, 220),
+    VERB_REVERSE:    (220, 100, 160),
+    VERB_SKIP:       (160, 220, 60),
+    VERB_WAIT:       (200, 180, 100),
 }
 
 # ── direction ──
@@ -204,35 +270,35 @@ LEVELS = [
     tape_level([R, G, R, P, P]),
     tape_level([R, G, Y, P]),
 
-    # ── Phase 3: harder assignable ──
-    tape_level([R, R, Y, B, Y]),
-    tape_level([R, Y, Y, B, B]),
-    tape_level([R, Y, B, R, B]),
-    tape_level([R, R, Y, B, B, B]),
+    # ── Phase 3: harder assignable (mix in grey filler) ──
+    tape_level([W, R, Y, B, Y]),
+    tape_level([R, W, Y, B, B]),
+    tape_level([W, Y, B, R, B]),
+    tape_level([R, R, Y, W, B, B]),
 
     # ── Phase 4: 2D shapes with turns ──
 
     # 11: L-shape
     {
-        "cells": [(0,0,R), (1,0,R), (2,0,B),
-                                     (2,1,R), (2,2,R), (2,3,Y)],
+        "cells": [(0,0,W), (1,0,W), (2,0,B),
+                                     (2,1,W), (2,2,W), (2,3,Y)],
         "start": (-1, 0), "dir": RIGHT,
     },
     # 12: Reverse L
     {
-        "cells": [(2,0,Y), (2,1,R), (2,2,R), (0,3,R), (1,3,R), (2,3,B)],
+        "cells": [(2,0,Y), (2,1,W), (2,2,W), (0,3,W), (1,3,W), (2,3,B)],
         "start": (-1, 3), "dir": RIGHT,
     },
     # 13: U-shape
     {
-        "cells": [(0,0,R), (1,0,R), (2,0,B), (2,1,R), (0,2,Y), (1,2,R), (2,2,B)],
+        "cells": [(0,0,W), (1,0,W), (2,0,B), (2,1,W), (0,2,Y), (1,2,W), (2,2,B)],
         "start": (-1, 0), "dir": RIGHT,
     },
     # 14: Big U
     {
-        "cells": [(0,0,R), (1,0,R), (2,0,R), (3,0,B),
-                  (3,1,R), (3,2,R),
-                  (0,3,Y), (1,3,R), (2,3,R), (3,3,B)],
+        "cells": [(0,0,W), (1,0,W), (2,0,W), (3,0,B),
+                  (3,1,W), (3,2,W),
+                  (0,3,Y), (1,3,W), (2,3,W), (3,3,B)],
         "start": (-1, 0), "dir": RIGHT,
     },
 ]
@@ -242,11 +308,11 @@ LEVELS = [
 from fractal import build_spiral_fractal, build_multi_fractal, build_key_fractal, build_gap_key_fractal
 
 LEVELS += [
-    build_spiral_fractal(2, seg_len=2, seg_color=R, branch_color=Y, turn_color=B),
-    build_spiral_fractal(3, seg_len=2, seg_color=B, branch_color=R, turn_color=Y),
-    build_spiral_fractal(3, seg_len=3, seg_color=Y, branch_color=B, turn_color=R),
+    build_spiral_fractal(2, seg_len=2, seg_color=W, branch_color=Y, turn_color=B),
+    build_spiral_fractal(3, seg_len=2, seg_color=W, branch_color=R, turn_color=Y),
+    build_spiral_fractal(3, seg_len=3, seg_color=W, branch_color=B, turn_color=R),
     build_multi_fractal(3, sub_depth=2, seg_len=2, trunk_seg=6,
-                        seg_color=R, branch_color=Y, turn_color=B),
+                        seg_color=W, branch_color=Y, turn_color=B),
 ]
 
 # ── Phase 6: sandwich (stacked cell) levels ──
@@ -256,8 +322,8 @@ LEVELS += [
     # R=Pass, Y=Dissolve, B=TurnRight
     {
         "cells": [
-            (0,0,R), (1,0,G), (2,0,(B,R)), (3,0,R), (4,0,Y),
-                               (2,1,R), (2,2,R), (2,3,Y),
+            (0,0,W), (1,0,G), (2,0,(B,W)), (3,0,W), (4,0,Y),
+                               (2,1,W), (2,2,W), (2,3,Y),
         ],
         "start": (-1, 0), "dir": RIGHT,
     },
@@ -266,21 +332,21 @@ LEVELS += [
     # R=Pass, Y=Dissolve, B=TurnRight
     {
         "cells": [
-            (0,0,R), (1,0,R), (2,0,G), (3,0,(B,R)), (4,0,R), (5,0,R), (6,0,Y),
-                                         (3,1,R), (3,2,R), (3,3,R), (3,4,Y),
+            (0,0,W), (1,0,W), (2,0,G), (3,0,(B,W)), (4,0,W), (5,0,W), (6,0,Y),
+                                         (3,1,W), (3,2,W), (3,3,W), (3,4,Y),
         ],
         "start": (-1, 0), "dir": RIGHT,
     },
 
     # 21: Cross junction — 3-layer sandwich, 3-way split
-    # Sandwich (B, C, R): first agent turns right (B), second turns left (C=fixed),
-    # third passes through (R). Three branches cleared simultaneously.
-    # R=Pass, Y=Dissolve, B=TurnRight
+    # Sandwich (B, C, W): first agent turns right (B), second turns left (C=fixed),
+    # third passes through (W=grey). Three branches cleared simultaneously.
+    # Y=Dissolve, B=TurnRight
     {
         "cells": [
-            (0,0,R), (1,0,G), (2,0,R), (3,0,G), (4,0,(B,C,R)), (5,0,R), (6,0,Y),
-                                                   (4,1,R), (4,2,R), (4,3,Y),
-                                                   (4,-1,R), (4,-2,R), (4,-3,Y),
+            (0,0,W), (1,0,G), (2,0,W), (3,0,G), (4,0,(B,C,W)), (5,0,W), (6,0,Y),
+                                                   (4,1,W), (4,2,W), (4,3,Y),
+                                                   (4,-1,W), (4,-2,W), (4,-3,Y),
         ],
         "start": (-1, 0), "dir": RIGHT,
     },
@@ -301,15 +367,15 @@ LEVELS += [
 LEVELS += [
     # 24: Gap fork — standalone timing puzzle with air gaps
     # Fewer cells, cleaner visuals, same timing mechanic
-    # R=Pass, Y=Dissolve, B=TurnRight
+    # Y=Dissolve, B=TurnRight
     {
         "cells": [
-            (0,0,R), (1,0,G), (2,0,(B,R)),
-            (6,0,(R,Y)),
+            (0,0,W), (1,0,G), (2,0,(B,W)),
+            (6,0,(W,Y)),
             (8,0,P),
-            (2,1,R), (2,3,R), (2,4,C),
-            (3,4,R), (6,4,C),
-            (6,3,R), (6,1,R),
+            (2,1,W), (2,3,W), (2,4,C),
+            (3,4,W), (6,4,C),
+            (6,3,W), (6,1,W),
         ],
         "start": (-1, 0), "dir": RIGHT,
     },
@@ -321,7 +387,811 @@ LEVELS += [
     build_gap_key_fractal(fractal_depth=3),
 ]
 
+# ── Phase 9: generated puzzles (brute-force + heuristic scored) ──
+
+LEVELS += [
+    # 27: R=Pass Y=Dissolve B=Replicate — B replicates, Y kills
+    {"cells": [(0,0,B), (1,0,Y), (2,0,R), (3,0,Y)],
+     "start": (-1, 0), "dir": RIGHT},
+
+    # 28: R=Pass Y=Dissolve B=Replicate — longer, same idea
+    {"cells": [(0,0,B), (1,0,R), (2,0,Y), (3,0,B), (4,0,Y), (5,0,R), (6,0,Y)],
+     "start": (-1, 0), "dir": RIGHT},
+
+    # 29: R=Replicate Y=Pass B=Dissolve — fixed G+P mixed in, peak 4
+    {"cells": [(0,0,R), (1,0,G), (2,0,Y), (3,0,R), (4,0,B), (5,0,P), (6,0,P), (7,0,B)],
+     "start": (-1, 0), "dir": RIGHT},
+
+    # 30: R=Replicate Y=Pass B=Dissolve — tight
+    {"cells": [(0,0,R), (1,0,Y), (2,0,B), (3,0,Y), (4,0,B)],
+     "start": (-1, 0), "dir": RIGHT},
+
+    # 31: R=Dissolve Y=Dissolve B=Replicate — two colors dissolve!
+    {"cells": [(0,0,B), (1,0,B), (2,0,R), (3,0,B), (4,0,Y), (5,0,R), (6,0,R)],
+     "start": (-1, 0), "dir": RIGHT},
+
+    # 32: R=Replicate Y=Replicate B=Dissolve — two colors replicate!
+    {"cells": [(0,0,R), (1,0,B), (2,0,Y), (3,0,B), (4,0,B)],
+     "start": (-1, 0), "dir": RIGHT},
+
+    # 33: R=Replicate Y=Replicate B=Dissolve — longer, peak 3
+    {"cells": [(0,0,R), (1,0,B), (2,0,Y), (3,0,Y), (4,0,B), (5,0,B), (6,0,B)],
+     "start": (-1, 0), "dir": RIGHT},
+]
+
+# ── Phase 10: two-agent facing levels ──
+
+def facing_level(colors):
+    """Two agents approach a tape from opposite ends."""
+    n = len(colors)
+    return {
+        "cells": [(i, 0, c) for i, c in enumerate(colors)],
+        "agents": [
+            {"x": -1, "y": 0, "dx": 1, "dy": 0},
+            {"x": n, "y": 0, "dx": -1, "dy": 0},
+        ],
+    }
+
+LEVELS += [
+    # 34: Intro facing — R=Replicate Y=Dissolve B=Pass (peak 4)
+    facing_level([R, Y, Y, Y, Y, B, R]),
+
+    # 35: R=Replicate Y=Dissolve B=Pass — different shape
+    facing_level([R, Y, B, Y, Y, Y, R]),
+
+    # 36: R=Replicate Y=Pass B=Dissolve (peak 4)
+    facing_level([R, Y, B, B, B, B, R]),
+
+    # 37: R=Pass Y=Dissolve B=Replicate — 3 colors, trickier (peak 3)
+    facing_level([R, Y, Y, R, Y, B]),
+
+    # 38: R=Dissolve Y=Replicate B=Pass — reversed expectations (peak 3)
+    facing_level([R, R, R, R, Y, B, Y]),
+
+    # 39: R=Replicate Y=Dissolve B=Replicate — two colors replicate! (peak 4)
+    facing_level([R, Y, B, Y, Y]),
+
+    # 40: R=Pass Y=Dissolve B=Replicate — longer, 1 solution
+    facing_level([R, Y, Y, R, Y, B]),
+
+    # 41: R=Replicate Y=Pass B=Dissolve — 1 solution
+    facing_level([R, Y, B, Y, B, B, Y]),
+]
+
+# ── Phase 11: hard facing — longest, peak 4, 1 solution ──
+LEVELS += [
+    # 42: R=Replicate Y=Dissolve B=Pass — 8 cells, asymmetric, 2 agents swarm
+    facing_level([R, Y, B, Y, Y, Y, B, R]),
+]
+
+# ── Phase 12: per-agent rules — each agent has its own verb assignment ──
+
+def per_agent_facing(colors):
+    """Two agents with separate rule sets approach from opposite ends."""
+    n = len(colors)
+    return {
+        "cells": [(i, 0, c) for i, c in enumerate(colors)],
+        "agents": [
+            {"x": -1, "y": 0, "dx": 1, "dy": 0, "team": 0},
+            {"x": n, "y": 0, "dx": -1, "dy": 0, "team": 1},
+        ],
+        "per_agent_rules": True,
+    }
+
+def per_agent_staggered(colors, gap=3):
+    """Two agents with separate rules, both go right, staggered start."""
+    return {
+        "cells": [(i, 0, c) for i, c in enumerate(colors)],
+        "agents": [
+            {"x": -1, "y": 0, "dx": 1, "dy": 0, "team": 0},
+            {"x": -1 - gap, "y": 0, "dx": 1, "dy": 0, "team": 1},
+        ],
+        "per_agent_rules": True,
+    }
+
+LEVELS += [
+    # 43: Per-agent intro — 2 solutions, gentle
+    # A: R=Replicate Y=Dissolve  B: R=Dissolve Y=Pass
+    per_agent_facing([R, Y, B, Y, R, B, Y]),
+
+    # 44: Asymmetric — one replicates, other dissolves on same color
+    # A: R=Replicate Y=Dissolve B=Pass  B: R=Pass Y=Pass B=Dissolve
+    per_agent_facing([R, Y, Y, B, Y, R, Y]),
+
+    # 45: All 3 verbs split across agents
+    # A: R=Replicate Y=Pass B=Dissolve  B: R=Pass Y=Dissolve B=Pass
+    per_agent_facing([R, Y, Y, B, Y, Y, B]),
+
+    # 46: Tricky — B must replicate for agent B
+    # A: R=Pass Y=Pass B=Dissolve  B: R=Dissolve Y=Pass B=Replicate
+    per_agent_facing([R, R, Y, R, Y, R, B]),
+
+    # 47: Hardest — unique-ish solution, all 3 colors meaningful
+    per_agent_facing([R, Y, B, R, Y, B]),
+]
+
+
+# ── fractal builder ──
+
+def build_fractal_branch(depth, seg_len, ox, oy, dx, dy, seg_color):
+    """Generate fractal branch cells. seg_color for path segments, fixed G/O/P for structure."""
+    cells = []
+    def branch(x, y, ddx, ddy, d):
+        for i in range(seg_len):
+            cells.append((x + ddx * i, y + ddy * i, seg_color))
+        ex, ey = x + ddx * seg_len, y + ddy * seg_len
+        if d == 0:
+            cells.append((ex, ey, FIXED_DISSOLVE))
+            return
+        cells.append((ex, ey, FIXED_REPLICATE))
+        bx, by = ex + ddx, ey + ddy
+        cells.append((bx, by, FIXED_TURN_RIGHT))
+        cdx, cdy = turn_right(ddx, ddy)
+        branch(bx + ddx, by + ddy, ddx, ddy, d - 1)
+        branch(bx + cdx, by + cdy, cdx, cdy, d - 1)
+    branch(ox, oy, dx, dy, depth)
+    return cells
+
+# ── Phase 13: dual-corner fractal — the spectacle levels ──
+# Two agents start at opposite corners. Each solves a key puzzle,
+# then their agent enters a fractal quadrant. At peak, many agents
+# swarm simultaneously, then everything dissolves to zero.
+# A uses R segments (R=Pass, Y=Dissolve, B=TurnRight)
+# B uses Y segments (Y=Pass, B=Dissolve, R=TurnLeft)
+
+def build_dual_fractal(depth, frac_start, bx_off, by_off):
+    """Build a dual-corner key+fractal level.
+    Grey (FIXED_PASS) for all path segments. Assignable colors only at decision points."""
+    W = FIXED_PASS  # grey road
+    key_a = [
+        (0,0,W), (1,0,FIXED_REPLICATE), (2,0,(WALL_BLUE, W)),   # split sandwich: B=TurnRight
+        (6,0,(W, WALL_YELLOW)),                                    # timing sandwich: Y=Dissolve
+        (2,1,W), (2,3,W), (2,4,FIXED_TURN_LEFT),                 # detour
+        (3,4,W), (6,4,FIXED_TURN_LEFT),
+        (6,3,W), (6,1,W),
+    ] + [(i, 0, W) for i in range(8, frac_start)]
+
+    frac_a = build_fractal_branch(depth, 2, frac_start, 0, 1, 0, W)
+
+    key_b = [
+        (bx_off, by_off, W),
+        (bx_off-1, by_off, FIXED_REPLICATE),
+        (bx_off-2, by_off, (WALL_RED, W)),                        # split sandwich: R=TurnLeft
+        (bx_off-6, by_off, (W, WALL_BLUE)),                       # timing sandwich: B=Dissolve
+        (bx_off-8, by_off, W),
+        (bx_off-9, by_off, W),
+        (bx_off-2, by_off+1, W),
+        (bx_off-2, by_off+3, W),
+        (bx_off-2, by_off+4, FIXED_TURN_RIGHT),
+        (bx_off-3, by_off+4, W),
+        (bx_off-6, by_off+4, FIXED_TURN_RIGHT),
+        (bx_off-6, by_off+3, W),
+        (bx_off-6, by_off+1, W),
+    ] + [(bx_off-i, by_off, W) for i in range(10, frac_start)]
+
+    frac_b = build_fractal_branch(depth, 2, bx_off-frac_start, by_off, -1, 0, W)
+
+    return {
+        "cells": key_a + frac_a + key_b + frac_b,
+        "agents": [
+            {"x": -1, "y": 0, "dx": 1, "dy": 0, "team": 0},
+            {"x": bx_off+1, "y": by_off, "dx": -1, "dy": 0, "team": 1},
+        ],
+        "per_agent_rules": True,
+    }
+
+# ── Phase 14: generated 2D puzzles — unique solutions, turns required ──
+
+LEVELS += [
+    # 48: L-shape, 1 sol — R=Pass Y=Dissolve B=TurnLeft
+    {"cells": [(0,-1,B),(0,0,R),(0,1,B),(1,0,Y),(1,1,B)], "start": (1,-1), "dir": (-1,0)},
+
+    # 49: Corner, 1 sol — R=TurnRight Y=Dissolve B=TurnLeft
+    {"cells": [(-1,1,R),(0,0,R),(0,1,B),(1,0,Y)], "start": (-1,2), "dir": (0,-1)},
+
+    # 50: Zigzag, 1 sol — R=Dissolve Y=Pass B=TurnLeft
+    {"cells": [(0,-1,B),(0,0,R),(1,-1,B),(1,0,Y),(1,1,Y)], "start": (1,2), "dir": (0,-1)},
+
+    # 51: Hook, 1 sol — R=TurnRight Y=TurnLeft B=Dissolve
+    {"cells": [(-2,1,B),(-1,0,Y),(-1,1,R),(0,0,Y),(0,1,R)], "start": (1,1), "dir": (-1,0)},
+
+    # 52: Grey road + turns, 1 sol — R=TurnLeft Y=TurnLeft B=Dissolve
+    {"cells": [(-1,-1,B),(0,-1,W),(0,0,W),(0,1,R),(1,-1,Y),(1,0,W),(1,1,R)], "start": (0,-2), "dir": (0,1)},
+
+    # 53: Replicate + turns, 5 sol — R=Dissolve Y=TurnLeft B=Pass
+    {"cells": [(-1,-2,Y),(-1,0,R),(0,-2,Y),(0,-1,R),(0,0,G)], "start": (0,1), "dir": (0,-1)},
+
+    # 54: Fixed turn + assignable, 5 sol — R=Pass Y=Dissolve B=TurnLeft
+    {"cells": [(-1,-1,Y),(-1,0,O),(0,0,B),(0,1,B)], "start": (-1,1), "dir": (1,0)},
+]
+
+# ── Phase 15: dual-corner fractal — the spectacle levels ──
+
+LEVELS += [
+    # 55: Dual fractal depth 2 — peak 8, the "aha" moment
+    build_dual_fractal(depth=2, frac_start=10, bx_off=30, by_off=16),
+
+    # 56: Dual fractal depth 3 — peak 14, the grand finale
+    build_dual_fractal(depth=3, frac_start=12, bx_off=32, by_off=18),
+]
+
+# ── Phase 14: swarm shape levels ──
+# Vertical cascade of R=Replicate + B=TurnLeft spawns N agents
+# who attack recognizable shapes in parallel. Visual payoff levels.
+# Solution: R=Replicate, Y=Dissolve, B=TurnLeft (unique for all)
+
+def make_swarm_shape(n_rows, row_fn, row_width):
+    """Vertical replication cascade feeding N rows of a shape."""
+    cells = []
+    for i in range(n_rows):
+        cells.append((0, i*2, R))
+        cells.append((0, i*2+1, B))
+    cells.append((0, n_rows*2, Y))
+    for i in range(n_rows):
+        ry = i*2+1
+        row = row_fn(i, n_rows, row_width)
+        for x, c in row:
+            cells.append((x+1, ry, c))
+        cells.append((row_width+1, ry, Y))
+    return {"cells": cells, "start": (0, -1), "dir": (0, 1)}
+
+def _row_plain(i, n, w):
+    return [(x, W) for x in range(w)]
+
+def _row_pyramid(i, n, w):
+    rw = max(1, w - i)
+    return [(x, W) for x in range(rw)]
+
+def _row_diamond(i, n, w):
+    mid = n // 2
+    rw = min(w, i + 2) if i <= mid else min(w, n - i + 1)
+    return [(x, W) for x in range(rw)]
+
+def _row_steps(i, n, w):
+    return [(x, W) for x in range(min(w, i + 1))]
+
+def _row_triangle(i, n, w):
+    return [(x, W) for x in range(min(w, n - i))]
+
+LEVELS += [
+    # 57: Rectangle 4x6 — intro to swarm (peak 3)
+    make_swarm_shape(4, _row_plain, 6),
+
+    # 58: Steps 6 — staircase swarm (peak 3)
+    make_swarm_shape(6, _row_steps, 6),
+
+    # 59: Pyramid 6 — pyramid dissolve (peak 4)
+    make_swarm_shape(6, _row_pyramid, 8),
+
+    # 60: Diamond 6 — diamond dissolve (peak 4)
+    make_swarm_shape(6, _row_diamond, 8),
+
+    # 61: Triangle 6 — inverted triangle (peak 4)
+    make_swarm_shape(6, _row_triangle, 8),
+
+    # 62: Rectangle 8x10 — the big payoff (peak 4, 105 cells)
+    make_swarm_shape(8, _row_plain, 10),
+]
+
+# ── Phase 15: bounce levels ──
+# Two agents face each other. They walk in, bounce on collision, reverse,
+# and each clears their half. The player figures out the shared rules.
+
+def bounce_gap(left_colors, right_colors):
+    """Two agents face symmetric tape with gap in middle."""
+    cells = []
+    for i, c in enumerate(left_colors):
+        cells.append((i, 0, c))
+    gap_x = len(left_colors)
+    for i, c in enumerate(right_colors):
+        cells.append((gap_x + 1 + i, 0, c))
+    return {
+        "cells": cells,
+        "agents": [
+            {"x": -1, "y": 0, "dx": 1, "dy": 0, "team": 0},
+            {"x": gap_x + 1 + len(right_colors), "y": 0, "dx": -1, "dy": 0, "team": 0},
+        ],
+    }
+
+def bounce_headon(colors):
+    """Two agents face each other on a tape, no gap."""
+    n = len(colors)
+    return {
+        "cells": [(i, 0, c) for i, c in enumerate(colors)],
+        "agents": [
+            {"x": -1, "y": 0, "dx": 1, "dy": 0, "team": 0},
+            {"x": n, "y": 0, "dx": -1, "dy": 0, "team": 0},
+        ],
+    }
+
+LEVELS += [
+    # 63: Bounce intro — simple symmetric, gap (5 solutions, gentle)
+    bounce_gap([R, Y], [Y, R]),
+
+    # 64: Bounce 3-color gap (2 solutions, tighter)
+    bounce_gap([R, Y, B], [B, Y, R]),
+
+    # 65: Bounce unique — 8 cells, only 1 solution
+    bounce_gap([R, R, Y, B], [B, Y, R, R]),
+
+    # 66: Head-on 3-color (2 solutions, no gap)
+    bounce_headon([R, Y, B, Y, R]),
+
+    # 67: Head-on symmetric 6-cell (2 solutions incl. replicate variant)
+    bounce_headon([R, Y, B, B, Y, R]),
+
+    # 68: Longer bounce — asymmetric arms, unique solution
+    bounce_gap([R, R, R, Y, B], [B, Y, R, R, R]),
+]
+
+# ── Phase 16: intercept mode — route evil agents to dissolve ──
+# Evil agents (red) have fixed rules visible to the player.
+# Hero agent (green) uses player-assigned rules.
+# Win: all evil agents dissolved.
+
+def intercept_level(cells, hero_def, evil_defs, evil_rules):
+    """Build an intercept level."""
+    agents = [dict(hero_def, team=0, evil=False)]
+    for ed in evil_defs:
+        agents.append(dict(ed, team=1, evil=True))
+    return {
+        "cells": cells,
+        "agents": agents,
+        "mode": "intercept",
+        "evil_rules": evil_rules,
+    }
+
+LEVELS += [
+    # 69: Intercept intro — evil walks right, hero comes from above
+    # P is behind where evil started — evil bounces back into it
+    # Evil: R=Pass. Hero: R=Pass, bounce evil backward.
+    intercept_level(
+        cells=[
+            (-1, 0, P),  # dissolve BEHIND evil's start
+            (0, 0, R), (1, 0, R), (2, 0, R), (3, 0, R), (4, 0, R), (5, 0, R),
+            (3, -1, R), (3, -2, R),  # hero's approach path from above
+        ],
+        hero_def={"x": 3, "y": -3, "dx": 0, "dy": 1},  # hero enters from above
+        evil_defs=[{"x": -2, "y": 0, "dx": 1, "dy": 0}],  # evil from far left
+        evil_rules={R: VERB_PASS, Y: VERB_PASS, B: VERB_PASS},
+    ),
+
+    # 70: Evil turns right at Y, hero intercepts on the vertical path
+    # Evil goes right, turns down at Y, walks into P at bottom
+    # Hero enters from the side to bounce evil into the P
+    intercept_level(
+        cells=[
+            (0, 0, R), (1, 0, R), (2, 0, Y),
+            (2, 1, R), (2, 2, R), (2, 3, R), (2, 4, P),  # evil's turn-down path
+            (4, 2, R), (3, 2, R),  # hero's approach from right
+        ],
+        hero_def={"x": 5, "y": 2, "dx": -1, "dy": 0},  # hero from right
+        evil_defs=[{"x": -1, "y": 0, "dx": 1, "dy": 0}],
+        evil_rules={R: VERB_PASS, Y: VERB_TURN_RIGHT, B: VERB_PASS},
+    ),
+
+    # 71: Two evil agents approach from opposite ends, hero drops from above
+    # P cells at far ends — evil bounces off hero and walks back into P
+    intercept_level(
+        cells=[
+            (-1, 0, P),  # left dissolve
+            (0, 0, R), (1, 0, R), (2, 0, R), (3, 0, R),
+            (4, 0, R), (5, 0, R), (6, 0, R), (7, 0, R),
+            (8, 0, P),  # right dissolve
+            (3, -1, R), (3, -2, R), (4, -1, R), (4, -2, R),  # hero path from above
+        ],
+        hero_def={"x": 3, "y": -3, "dx": 0, "dy": 1},
+        evil_defs=[
+            {"x": -2, "y": 0, "dx": 1, "dy": 0},
+            {"x": 9, "y": 0, "dx": -1, "dy": 0},
+        ],
+        evil_rules={R: VERB_PASS, Y: VERB_PASS, B: VERB_PASS},
+    ),
+]
+
+# ── Phase 17: place agent mode — find the right starting position ──
+
+def place_agent_level(cells, fixed_rules, max_agents=1):
+    return {
+        "cells": cells,
+        "agents": [],  # player places agents
+        "mode": "place_agent",
+        "fixed_rules": fixed_rules,
+        "max_agents": max_agents,
+    }
+
+LEVELS += [
+    # 72: Simple L-shape — only one entry point clears it
+    # R=Pass, Y=TurnRight, B=Dissolve. Enter from top-left going right.
+    place_agent_level(
+        cells=[
+            (0, 0, R), (1, 0, R), (2, 0, R), (3, 0, Y),
+            (3, 1, R), (3, 2, R), (3, 3, B),
+        ],
+        fixed_rules={R: VERB_PASS, Y: VERB_TURN_RIGHT, B: VERB_DISSOLVE},
+    ),
+
+    # 73: T-shape — must enter from the right arm to clear everything
+    # R=Pass, Y=TurnLeft, B=Dissolve
+    place_agent_level(
+        cells=[
+            (0, 0, R), (1, 0, R), (2, 0, R), (3, 0, R), (4, 0, R),
+            (2, 1, Y), (2, 2, R), (2, 3, B),
+        ],
+        fixed_rules={R: VERB_PASS, Y: VERB_TURN_LEFT, B: VERB_DISSOLVE},
+    ),
+
+    # 74: Spiral — only one entry point navigates the whole spiral
+    # R=Pass, Y=TurnRight, B=Dissolve
+    place_agent_level(
+        cells=[
+            (0, 0, R), (1, 0, R), (2, 0, R), (3, 0, Y),
+            (3, 1, R), (3, 2, R), (3, 3, Y),
+            (2, 3, R), (1, 3, R), (0, 3, Y),
+            (0, 2, R), (0, 1, B),
+        ],
+        fixed_rules={R: VERB_PASS, Y: VERB_TURN_RIGHT, B: VERB_DISSOLVE},
+    ),
+
+    # 75: Place 2 agents — both needed to clear a forked path
+    place_agent_level(
+        cells=[
+            (0, 0, R), (1, 0, R), (2, 0, R), (3, 0, B),
+            (0, 2, R), (1, 2, R), (2, 2, R), (3, 2, B),
+        ],
+        fixed_rules={R: VERB_PASS, B: VERB_DISSOLVE, Y: VERB_PASS},
+        max_agents=2,
+    ),
+]
+
 NUM_LEVELS = len(LEVELS)
+
+
+# ── level serialization ──
+
+import json, zlib, base64
+
+def serialize_level(level):
+    """Encode a level dict to a compact shareable string."""
+    cells = level["cells"]
+    if not cells:
+        return None
+
+    # normalize coordinates to start at (0,0)
+    min_x = min(x for x, y, c in cells)
+    min_y = min(y for x, y, c in cells)
+
+    def encode_cell(c):
+        if isinstance(c, tuple):
+            return list(c)
+        return c
+
+    data = {
+        "c": [[x - min_x, y - min_y, encode_cell(c)] for x, y, c in cells],
+    }
+
+    if "agents" in level:
+        data["a"] = [[a["x"] - min_x, a["y"] - min_y, a["dx"], a["dy"], a.get("team", 0)]
+                      for a in level["agents"]]
+    else:
+        data["a"] = [[level["start"][0] - min_x, level["start"][1] - min_y,
+                       level["dir"][0], level["dir"][1], 0]]
+
+    if level.get("per_agent_rules"):
+        data["p"] = 1
+
+    payload = json.dumps(data, separators=(',', ':'))
+    compressed = zlib.compress(payload.encode(), 9)
+    code = "TGUSF1-" + base64.urlsafe_b64encode(compressed).decode().rstrip('=')
+    return code
+
+
+def deserialize_level(code):
+    """Decode a level string back to a level dict."""
+    if not code.startswith("TGUSF1-"):
+        return None
+    b64 = code[7:]
+    # restore padding
+    b64 += '=' * (-len(b64) % 4)
+    try:
+        compressed = base64.urlsafe_b64decode(b64)
+        payload = zlib.decompress(compressed).decode()
+        data = json.loads(payload)
+    except Exception:
+        return None
+
+    def decode_cell(c):
+        if isinstance(c, list):
+            return tuple(c)
+        return c
+
+    cells = [(x, y, decode_cell(c)) for x, y, c in data["c"]]
+    agents = [{"x": a[0], "y": a[1], "dx": a[2], "dy": a[3], "team": a[4]}
+              for a in data["a"]]
+
+    level = {"cells": cells, "agents": agents}
+    if data.get("p"):
+        level["per_agent_rules"] = True
+    return level
+
+
+def grid_to_level(grid, agents, underneath):
+    """Extract a level dict from the current grid state (for editor)."""
+    cells = []
+    for y in range(GRID_H):
+        for x in range(GRID_W):
+            c = grid[y][x]
+            if is_wall(c):
+                cells.append((x, y, c))
+            # also check if agent is sitting on sandwich layers
+    for (ax, ay), layers in underneath.items():
+        cell_val = layers[0] if len(layers) == 1 else tuple(layers)
+        cells.append((ax, ay, cell_val))
+
+    agent_defs = [{"x": a["x"], "y": a["y"], "dx": a["dx"], "dy": a["dy"],
+                   "team": a.get("team", 0)} for a in agents if a["alive"]]
+
+    if not cells:
+        return None
+    return {"cells": cells, "agents": agent_defs}
+
+
+def check_solvable(level, max_teams=1):
+    """Brute-force check: does any verb assignment give a perfect solution?"""
+    from itertools import product as iprod
+    verbs_range = [VERB_PASS, VERB_REPLICATE, VERB_DISSOLVE, VERB_TURN_LEFT, VERB_TURN_RIGHT]
+
+    if max_teams == 1:
+        combos = iprod(verbs_range, repeat=3)
+    else:
+        combos = iprod(verbs_range, repeat=3 * max_teams)
+
+    solutions = 0
+    for combo in combos:
+        if max_teams == 1:
+            vl = [{WALL_RED: combo[0], WALL_YELLOW: combo[1], WALL_BLUE: combo[2]}]
+        else:
+            vl = []
+            for t in range(max_teams):
+                off = t * 3
+                vl.append({WALL_RED: combo[off], WALL_YELLOW: combo[off+1], WALL_BLUE: combo[off+2]})
+
+        g, ag, und = make_grid(level)
+        for _ in range(MAX_STEPS):
+            if not ag or count_walls(g, und) == 0:
+                break
+            ag, _ = sim_step(ag, g, vl, und)
+
+        if count_walls(g, und) == 0 and len(ag) == 0:
+            solutions += 1
+            if solutions >= 1:
+                return solutions  # early exit: at least 1 solution found
+    return solutions
+
+
+# ── editor ──
+
+EDITOR_PALETTE = [
+    (WALL_RED,         "Red"),
+    (WALL_YELLOW,      "Yellow"),
+    (WALL_BLUE,        "Blue"),
+    (FIXED_PASS,       "Grey (pass)"),
+    (FIXED_REPLICATE,  "Green (replicate)"),
+    (FIXED_DISSOLVE,   "Purple (dissolve)"),
+    (FIXED_TURN_RIGHT, "Orange (turn R)"),
+    (FIXED_TURN_LEFT,  "Cyan (turn L)"),
+    (WALL_PINK,        "Pink (assign)"),
+    (WALL_TEAL,        "Teal (assign)"),
+    (FIXED_REVERSE,    "Reverse"),
+    (FIXED_SKIP,       "Skip"),
+    (FIXED_ONE_WAY_R,  "Gate right"),
+    (FIXED_ONE_WAY_D,  "Gate down"),
+    (FIXED_ONE_WAY_L,  "Gate left"),
+    (FIXED_ONE_WAY_U,  "Gate up"),
+    (FIXED_TELEPORT_A, "Teleport in"),
+    (FIXED_TELEPORT_B, "Teleport out"),
+]
+
+EDITOR_BG = (30, 30, 42)
+
+
+def draw_editor_panel(screen, font, font_sm, editor_state, mouse_pos):
+    """Draw the editor palette and controls. Compact 2-column grid layout."""
+    px = GRID_PX_W
+    pygame.draw.rect(screen, EDITOR_BG, (px, 0, PANEL_W, WIN_H))
+
+    y = 8
+    screen.blit(font.render("LEVEL EDITOR", True, (255, 200, 80)), (px + 10, y))
+    y += 24
+
+    # help toggle button
+    show_help = editor_state.get("show_help", False)
+    hbx, hby = px + PANEL_W - 50, y
+    hbw, hbh = 42, 18
+    h_hov = hbx <= mouse_pos[0] < hbx + hbw and hby <= mouse_pos[1] < hby + hbh
+    h_bg = (80, 160, 200) if show_help else (55, 55, 70) if h_hov else (40, 40, 52)
+    pygame.draw.rect(screen, h_bg, (hbx, hby, hbw, hbh), border_radius=3)
+    h_fg = (0, 0, 0) if show_help else TEXT_COLOR
+    screen.blit(font_sm.render("? Help", True, h_fg), (hbx + 3, hby + 1))
+    help_btn = (hbx, hby, hbw, hbh, "help_toggle")
+
+    # one-line hint
+    screen.blit(font_sm.render("H=help  T=test  C=copy  V=paste", True, TEXT_DIM), (px + 8, y))
+    y += 20
+
+    # agent placement: dedicated button + agent mode toggle
+    na = editor_state["num_agents"]
+    agent_mode = editor_state.get("agent_place_mode", False)
+
+    # agent place toggle button
+    abx, aby = px + 8, y
+    abw, abh = PANEL_W - 16, 24
+    a_hov = abx <= mouse_pos[0] < abx + abw and aby <= mouse_pos[1] < aby + abh
+    a_bg = (80, 180, 100) if agent_mode else (55, 55, 70) if a_hov else (40, 40, 52)
+    pygame.draw.rect(screen, a_bg, (abx, aby, abw, abh), border_radius=3)
+    a_label = f"PLACE AGENT ({na} max)  {'[ON]' if agent_mode else '[OFF]'}"
+    a_fg = (0, 0, 0) if agent_mode else TEXT_COLOR
+    screen.blit(font_sm.render(a_label, True, a_fg), (abx + 6, aby + 4))
+    agent_btn = (abx, aby, abw, abh, "agent_toggle")
+    y += abh + 4
+
+    # agent count + per-agent buttons (compact row)
+    screen.blit(font_sm.render("Agents:", True, TEXT_DIM), (px + 10, y + 2))
+    count_rects = []
+    for i in range(1, 5):
+        cbx = px + 70 + (i - 1) * 28
+        cbw, cbh = 24, 20
+        active = na == i
+        c_hov = cbx <= mouse_pos[0] < cbx + cbw and y <= mouse_pos[1] < y + cbh
+        bg = (80, 180, 100) if active else (50, 50, 65) if c_hov else (38, 38, 52)
+        pygame.draw.rect(screen, bg, (cbx, y, cbw, cbh), border_radius=2)
+        fg = (0, 0, 0) if active else TEXT_COLOR
+        screen.blit(font_sm.render(str(i), True, fg), (cbx + 8, y + 2))
+        count_rects.append((cbx, y, cbw, cbh, ("agent_count", i)))
+
+    # per-agent toggle
+    pa = editor_state["per_agent"]
+    pbx = px + 195
+    pbw = 75
+    p_hov = pbx <= mouse_pos[0] < pbx + pbw and y <= mouse_pos[1] < y + 20
+    bg = (80, 180, 100) if pa else (50, 50, 65) if p_hov else (38, 38, 52)
+    pygame.draw.rect(screen, bg, (pbx, y, pbw, 20), border_radius=2)
+    fg = (0, 0, 0) if pa else TEXT_COLOR
+    screen.blit(font_sm.render("PerAgent" if pa else "Shared", True, fg), (pbx + 4, y + 2))
+    per_agent_btn = (pbx, y, pbw, 20, "per_agent_toggle")
+    y += 26
+
+    # cell palette header
+    screen.blit(font_sm.render("CELLS:", True, TEXT_COLOR), (px + 10, y))
+    y += 16
+
+    # 2-column grid of color swatches — compact
+    btn_rects = []
+    sel = editor_state["selected"]
+    cols = 2
+    swatch_w = (PANEL_W - 20) // cols - 4
+    swatch_h = 22
+    for i, (cell_type, label) in enumerate(EDITOR_PALETTE):
+        col = i % cols
+        row = i // cols
+        bx = px + 8 + col * (swatch_w + 6)
+        by = y + row * (swatch_h + 3)
+        is_sel = cell_type == sel
+        hovered = bx <= mouse_pos[0] < bx + swatch_w and by <= mouse_pos[1] < by + swatch_h
+        bg = (70, 70, 90) if is_sel else (50, 50, 65) if hovered else (38, 38, 52)
+        pygame.draw.rect(screen, bg, (bx, by, swatch_w, swatch_h), border_radius=2)
+        # color swatch
+        pygame.draw.rect(screen, WCOLOR[cell_type], (bx + 2, by + 2, 18, swatch_h - 4))
+        if cell_type in FIXED_TYPES:
+            pygame.draw.rect(screen, (255, 255, 255), (bx + 4, by + 4, 14, swatch_h - 8), 1)
+        # short label
+        short = label.split("(")[0].strip()[:10]
+        screen.blit(font_sm.render(short, True, TEXT_COLOR), (bx + 23, by + 3))
+        if is_sel:
+            pygame.draw.rect(screen, (255, 200, 80), (bx, by, swatch_w, swatch_h), 2, border_radius=2)
+        btn_rects.append((bx, by, swatch_w, swatch_h, cell_type))
+
+    n_rows = (len(EDITOR_PALETTE) + cols - 1) // cols
+    y += n_rows * (swatch_h + 3) + 8
+
+    # current brush indicator
+    brush = editor_state.get("brush", editor_state["selected"])
+    screen.blit(font_sm.render("Brush:", True, TEXT_DIM), (px + 10, y))
+    bx_start = px + 55
+    if isinstance(brush, tuple):
+        # sandwich brush — draw stacked stripes
+        sw_w, sw_h = 30, 18
+        n = len(brush)
+        for i, sc in enumerate(brush):
+            sy = y + (sw_h * i) // n
+            sh = (sw_h * (i + 1)) // n - (sw_h * i) // n
+            pygame.draw.rect(screen, WCOLOR[sc], (bx_start, sy, sw_w, sh))
+        pygame.draw.rect(screen, TEXT_DIM, (bx_start, y, sw_w, sw_h), 1)
+        screen.blit(font_sm.render("sandwich", True, TEXT_DIM), (bx_start + 34, y + 2))
+    else:
+        pygame.draw.rect(screen, WCOLOR.get(brush, (80,80,80)), (bx_start, y, 18, 14))
+        if brush in FIXED_TYPES:
+            pygame.draw.rect(screen, (255,255,255), (bx_start + 2, y + 2, 14, 10), 1)
+        cname = ""
+        for ct, lb in EDITOR_PALETTE:
+            if ct == brush: cname = lb; break
+        screen.blit(font_sm.render(cname, True, TEXT_DIM), (bx_start + 22, y))
+    y += 20
+
+    # sandwich stack builder
+    stack = editor_state["sandwich_stack"]
+    if stack:
+        screen.blit(font_sm.render("Building:", True, TEXT_DIM), (px + 10, y))
+        for i, sc in enumerate(stack):
+            pygame.draw.rect(screen, WCOLOR[sc], (px + 70 + i * 22, y, 18, 14))
+        screen.blit(font_sm.render("S=add D=clear", True, TEXT_DIM), (px + 70 + len(stack) * 22 + 4, y))
+        y += 18
+    else:
+        y += 2
+
+    # action buttons — compact horizontal pairs
+    action_rects = []
+    action_btns = [("Test", "test"), ("Copy", "copy"), ("Paste", "paste"), ("Clear", "clear")]
+    abw2 = (PANEL_W - 24) // 2
+    for i, (label, key) in enumerate(action_btns):
+        col = i % 2
+        row = i // 2
+        bx = px + 8 + col * (abw2 + 6)
+        by = y + row * 28
+        bw, bh = abw2, 24
+        hovered = bx <= mouse_pos[0] < bx + bw and by <= mouse_pos[1] < by + bh
+        bg = (60, 60, 80) if hovered else (45, 45, 60)
+        pygame.draw.rect(screen, bg, (bx, by, bw, bh), border_radius=3)
+        screen.blit(font_sm.render(label, True, TEXT_COLOR), (bx + bw // 2 - font_sm.size(label)[0] // 2, by + 4))
+        action_rects.append((bx, by, bw, bh, key))
+    y += 2 * 28 + 8
+
+    # status message
+    msg = editor_state.get("status_msg", "")
+    if msg:
+        mc = STATUS_GREEN if "OK" in msg or "Copied" in msg or "placed" in msg.lower() else STATUS_YELLOW
+        screen.blit(font_sm.render(msg, True, mc), (px + 10, y))
+        y += 16
+
+    # level code (compact)
+    code = editor_state.get("level_code", "")
+    if code:
+        cw = PANEL_W - 20
+        chars = cw // 7
+        for i in range(0, min(len(code), chars * 3), chars):
+            screen.blit(font_sm.render(code[i:i+chars], True, (150, 180, 220)), (px + 10, y))
+            y += 13
+
+    # return all clickable rects: btn_rects (cells) + action_rects + special buttons
+    all_special = [agent_btn, per_agent_btn, help_btn] + count_rects
+    return btn_rects, action_rects + all_special
+
+
+def draw_editor_grid(screen, grid, editor_agents, underneath):
+    """Draw grid with editor overlay (grid lines, cursor highlight)."""
+    # draw faint grid lines
+    for x in range(GRID_W + 1):
+        pygame.draw.line(screen, (35, 35, 48), (x * CELL, 0), (x * CELL, GRID_PX_H))
+    for y in range(GRID_H + 1):
+        pygame.draw.line(screen, (35, 35, 48), (0, y * CELL), (GRID_PX_W, y * CELL))
+
+    # draw cells
+    for y in range(GRID_H):
+        for x in range(GRID_W):
+            c = grid[y][x]
+            if is_wall(c):
+                draw_cell(screen, x * CELL, y * CELL, c)
+
+    # draw editor agents (as colored arrows)
+    for a in editor_agents:
+        rx, ry = a["x"] * CELL, a["y"] * CELL
+        cx, cy = rx + CELL // 2, ry + CELL // 2
+        team = a.get("team", 0)
+        color = TEAM_COLORS[team % len(TEAM_COLORS)]
+        pygame.draw.circle(screen, color, (cx, cy), CELL // 2 - 2)
+        tip_x = cx + a["dx"] * (CELL // 4)
+        tip_y = cy + a["dy"] * (CELL // 4)
+        pygame.draw.circle(screen, (255, 255, 255), (tip_x, tip_y), 3)
 
 
 # ── world setup ──
@@ -330,14 +1200,21 @@ def make_grid(level):
     grid = [[EMPTY]*GRID_W for _ in range(GRID_H)]
     cells = level["cells"]
 
-    # flatten all positions for bounding box (handle sandwich tuples)
+    # gather all positions for bounding box: cells + agent starts
     xs = [x for x, y, c in cells]
     ys = [y for x, y, c in cells]
-    sx, sy = level["start"]
-    min_x = min(min(xs), sx)
-    max_x = max(max(xs), sx)
-    min_y = min(min(ys), sy)
-    max_y = max(max(ys), sy)
+
+    if "agents" in level:
+        agent_defs = level["agents"]
+    else:
+        agent_defs = [{"x": level["start"][0], "y": level["start"][1],
+                       "dx": level["dir"][0], "dy": level["dir"][1]}]
+
+    for ad in agent_defs:
+        xs.append(ad["x"]); ys.append(ad["y"])
+
+    min_x, max_x = min(xs), max(xs)
+    min_y, max_y = min(ys), max(ys)
 
     shape_w = max_x - min_x + 1
     shape_h = max_y - min_y + 1
@@ -346,15 +1223,19 @@ def make_grid(level):
     oy = (GRID_H - shape_h) // 2 - min_y
 
     for x, y, c in cells:
-        grid[y + oy][x + ox] = c  # c can be int or tuple
+        grid[y + oy][x + ox] = c
 
-    ax, ay = sx + ox, sy + oy
-    grid[ay][ax] = AGENT
-    agent = {"x": ax, "y": ay, "dx": level["dir"][0], "dy": level["dir"][1], "alive": True}
+    agents = []
+    for i, ad in enumerate(agent_defs):
+        ax, ay = ad["x"] + ox, ad["y"] + oy
+        grid[ay][ax] = AGENT
+        team = ad.get("team", i)
+        evil = ad.get("evil", False)
+        agents.append({"x": ax, "y": ay, "dx": ad["dx"], "dy": ad["dy"], "alive": True, "team": team, "evil": evil})
 
-    underneath = {}  # (x, y) -> [remaining colors] for sandwich layers under agents
+    underneath = {}
 
-    return grid, [agent], underneath
+    return grid, agents, underneath
 
 
 # ── sim helpers ──
@@ -376,11 +1257,40 @@ def occupy(nx, ny, grid, underneath, remaining):
 
 # ── sim step ──
 
-def sim_step(agents, grid, verbs, underneath):
+def _resolve_wall(a, nx, ny, grid, verbs_list, underneath, evil_rules=None):
+    """Resolve an agent hitting a wall cell. Returns action dict or None."""
+    x, y = a["x"], a["y"]
+    dx, dy = a["dx"], a["dy"]
+    target = grid[ny][nx]
+    top, remaining = pop_top(target)
+
+    # one-way gates: block agents coming from wrong direction
+    if top in ONE_WAY_TYPES:
+        if (dx, dy) != ONE_WAY_DIR[top]:
+            return None
+
+    # evil agents use fixed evil_rules, hero agents use verbs_list
+    if evil_rules and a.get("evil"):
+        team_verbs = evil_rules
+    else:
+        team_verbs = verbs_list[min(a.get("team", 0), len(verbs_list) - 1)]
+    verb = get_verb(top, team_verbs)
+    has_remaining = remaining != EMPTY
+
+    return {"verb": verb, "top": top, "remaining": remaining, "has_remaining": has_remaining}
+
+
+def sim_step(agents, grid, verbs_list, underneath, evil_rules=None):
+    """Two-phase sim: compute intended moves, resolve collisions, then execute.
+    Collision rule: agent moving into occupied cell bounces (reverses).
+    Two agents moving into same empty cell: both bounce."""
     new_agents = []
 
+    # ── phase 1: compute intended destinations ──
+    intents = []  # (agent, action_type, dest_x, dest_y, wall_info)
     for a in agents:
         if not a["alive"]:
+            intents.append((a, "dead", -1, -1, None))
             continue
 
         x, y = a["x"], a["y"]
@@ -388,66 +1298,162 @@ def sim_step(agents, grid, verbs, underneath):
         nx, ny = x + dx, y + dy
 
         if not in_bounds(nx, ny):
+            intents.append((a, "stuck", x, y, None))
             continue
 
         target = grid[ny][nx]
 
         if target == EMPTY:
+            intents.append((a, "move", nx, ny, None))
+        elif is_wall(target):
+            info = _resolve_wall(a, nx, ny, grid, verbs_list, underneath, evil_rules)
+            if info is None:
+                intents.append((a, "stuck", x, y, None))
+            elif info["verb"] == VERB_DISSOLVE:
+                intents.append((a, "dissolve", nx, ny, info))
+            elif info["verb"] == VERB_REPLICATE:
+                intents.append((a, "replicate", nx, ny, info))
+            elif info["verb"] == VERB_SKIP:
+                skip_x, skip_y = nx + dx, ny + dy
+                if in_bounds(skip_x, skip_y) and grid[skip_y][skip_x] == EMPTY:
+                    intents.append((a, "skip", skip_x, skip_y, info))
+                else:
+                    intents.append((a, "skip_short", nx, ny, info))
+            else:
+                # pass, turn_left, turn_right, reverse, wait — all move to nx,ny
+                intents.append((a, "wall_move", nx, ny, info))
+        elif target == AGENT:
+            # check if the occupant is moving TOWARD us (head-on) → bounce
+            # otherwise just block (wait in place)
+            occupant = None
+            for other in agents:
+                if other["alive"] and other["x"] == nx and other["y"] == ny:
+                    occupant = other
+                    break
+            if occupant and occupant["dx"] == -dx and occupant["dy"] == -dy:
+                # head-on: both coming at each other → bounce
+                intents.append((a, "bounce", x, y, None))
+            else:
+                # rear-end or perpendicular into stationary → just block
+                intents.append((a, "stuck", x, y, None))
+        else:
+            intents.append((a, "stuck", x, y, None))
+
+    # ── phase 2: detect move conflicts ──
+    # find cells that multiple agents want to move INTO the same empty cell
+    dest_claims = {}  # (dx,dy) → [index into intents]
+    for i, (a, action, dx, dy, info) in enumerate(intents):
+        if action in ("move", "wall_move", "skip", "skip_short"):
+            dest_claims.setdefault((dx, dy), []).append(i)
+
+    # if two+ agents claim the same destination, all bounce
+    for pos, claimants in dest_claims.items():
+        if len(claimants) > 1:
+            for idx in claimants:
+                a, action, _, _, info = intents[idx]
+                intents[idx] = (a, "bounce", a["x"], a["y"], None)
+
+    # ── phase 3: execute ──
+    for a, action, dest_x, dest_y, info in intents:
+        if not a["alive"]:
+            continue
+
+        x, y = a["x"], a["y"]
+        dx, dy = a["dx"], a["dy"]
+        nx, ny = x + dx, y + dy
+
+        if action == "move":
+            vacate(x, y, grid, underneath)
+            a["x"], a["y"] = dest_x, dest_y
+            grid[dest_y][dest_x] = AGENT
+
+        elif action == "bounce":
+            # reverse direction, stay in place
+            a["dx"], a["dy"] = -a["dx"], -a["dy"]
+
+        elif action == "dissolve":
+            a["alive"] = False
+            vacate(x, y, grid, underneath)
+            if info["has_remaining"]:
+                rem = info["remaining"]
+                grid[ny][nx] = rem if not isinstance(rem, list) else tuple(rem)
+            else:
+                grid[ny][nx] = EMPTY
+
+        elif action == "replicate":
+            child = {"x": nx, "y": ny, "dx": dx, "dy": dy, "alive": True, "team": a.get("team", 0), "evil": a.get("evil", False)}
+            new_agents.append(child)
+            if info["has_remaining"]:
+                occupy(nx, ny, grid, underneath, info["remaining"])
+            else:
+                grid[ny][nx] = AGENT
+
+        elif action in ("wall_move", "skip_short"):
+            verb = info["verb"]
             vacate(x, y, grid, underneath)
             a["x"], a["y"] = nx, ny
-            grid[ny][nx] = AGENT
 
-        elif is_wall(target):
-            top, remaining = pop_top(target)
-            verb = get_verb(top, verbs)
-
-            # remaining is EMPTY (int 0), a single color (int), or a tuple
-            has_remaining = remaining != EMPTY
-
-            if verb == VERB_PASS:
-                vacate(x, y, grid, underneath)
-                a["x"], a["y"] = nx, ny
-                if has_remaining:
-                    occupy(nx, ny, grid, underneath, remaining)
-                else:
-                    grid[ny][nx] = AGENT
-
-            elif verb == VERB_REPLICATE:
-                child = {"x": nx, "y": ny, "dx": dx, "dy": dy, "alive": True}
-                new_agents.append(child)
-                if has_remaining:
-                    occupy(nx, ny, grid, underneath, remaining)
-                else:
-                    grid[ny][nx] = AGENT
-
-            elif verb == VERB_DISSOLVE:
-                a["alive"] = False
-                vacate(x, y, grid, underneath)
-                if has_remaining:
-                    grid[ny][nx] = remaining if not isinstance(remaining, list) else tuple(remaining)
+            if verb == VERB_TURN_LEFT:
+                a["dx"], a["dy"] = turn_left(dx, dy)
+            elif verb == VERB_TURN_RIGHT:
+                a["dx"], a["dy"] = turn_right(dx, dy)
+            elif verb == VERB_REVERSE:
+                a["dx"], a["dy"] = -dx, -dy
+            elif verb == VERB_WAIT:
+                # stay in place, consume cell, don't move
+                a["x"], a["y"] = x, y
+                # but cell at nx,ny was consumed — handle remaining
+                if info["has_remaining"]:
+                    grid[ny][nx] = info["remaining"] if not isinstance(info["remaining"], tuple) else info["remaining"]
                 else:
                     grid[ny][nx] = EMPTY
+                # re-place agent at original position
+                grid[y][x] = AGENT
+                continue  # skip the occupy logic below
 
-            elif verb == VERB_TURN_LEFT:
-                vacate(x, y, grid, underneath)
-                a["x"], a["y"] = nx, ny
-                a["dx"], a["dy"] = turn_left(dx, dy)
-                if has_remaining:
-                    occupy(nx, ny, grid, underneath, remaining)
+            if info["has_remaining"]:
+                occupy(nx, ny, grid, underneath, info["remaining"])
+            else:
+                grid[ny][nx] = AGENT
+
+        elif action == "skip":
+            vacate(x, y, grid, underneath)
+            a["x"], a["y"] = dest_x, dest_y
+            grid[dest_y][dest_x] = AGENT
+            # handle consumed cell at nx,ny
+            if info["has_remaining"]:
+                rem = info["remaining"]
+                grid[ny][nx] = rem if not isinstance(rem, tuple) else rem
+            else:
+                grid[ny][nx] = EMPTY
+
+        # teleport handling (after wall actions)
+        if info and (info["top"] == FIXED_TELEPORT_A or info["top"] == FIXED_TELEPORT_B):
+            pair = FIXED_TELEPORT_B if info["top"] == FIXED_TELEPORT_A else FIXED_TELEPORT_A
+            for ty in range(GRID_H):
+                for tx in range(GRID_W):
+                    tc = grid[ty][tx]
+                    found_pair = False
+                    if tc == pair: found_pair = True
+                    elif isinstance(tc, tuple) and pair in tc: found_pair = True
+                    elif (tx, ty) in underneath and pair in underneath[(tx, ty)]: found_pair = True
+                    if found_pair:
+                        vacate(a["x"], a["y"], grid, underneath)
+                        if info["has_remaining"]:
+                            grid[ny][nx] = info["remaining"] if not isinstance(info["remaining"], tuple) else info["remaining"]
+                        else:
+                            grid[ny][nx] = EMPTY
+                        exit_top, exit_rem = pop_top(tc)
+                        exit_has_rem = exit_rem != EMPTY
+                        a["x"], a["y"] = tx, ty
+                        if exit_has_rem:
+                            occupy(tx, ty, grid, underneath, exit_rem)
+                        else:
+                            grid[ty][tx] = AGENT
+                        break
                 else:
-                    grid[ny][nx] = AGENT
-
-            elif verb == VERB_TURN_RIGHT:
-                vacate(x, y, grid, underneath)
-                a["x"], a["y"] = nx, ny
-                a["dx"], a["dy"] = turn_right(dx, dy)
-                if has_remaining:
-                    occupy(nx, ny, grid, underneath, remaining)
-                else:
-                    grid[ny][nx] = AGENT
-
-        elif target == AGENT:
-            pass  # blocked
+                    continue
+                break
 
     # add newborns
     spawned = 0
@@ -477,12 +1483,38 @@ def draw_cell(screen, rx, ry, cell):
             sy = ry + 1 + (inner_h * i) // n
             sh = (inner_h * (i + 1)) // n - (inner_h * i) // n
             pygame.draw.rect(screen, WCOLOR[color], (rx + 1, sy, CELL - 2, sh))
-            if color in FIXED_TYPES:
+            if color in FIXED_TYPES or color in EDITOR_EXTRA_TYPES:
                 pygame.draw.rect(screen, (255,255,255), (rx+3, sy+1, CELL-6, max(sh-2, 1)), 1)
     elif cell in WCOLOR:
         pygame.draw.rect(screen, WCOLOR[cell], (rx+1, ry+1, CELL-2, CELL-2))
         if cell in FIXED_TYPES:
             pygame.draw.rect(screen, (255,255,255), (rx+4, ry+4, CELL-8, CELL-8), 1)
+        # one-way gate: draw direction arrow
+        if cell in ONE_WAY_TYPES:
+            cx, cy = rx + CELL // 2, ry + CELL // 2
+            d = ONE_WAY_DIR[cell]
+            tip = (cx + d[0] * 5, cy + d[1] * 5)
+            base1 = (cx - d[0] * 3 + d[1] * 3, cy - d[1] * 3 + d[0] * 3)
+            base2 = (cx - d[0] * 3 - d[1] * 3, cy - d[1] * 3 - d[0] * 3)
+            pygame.draw.polygon(screen, (40, 40, 50), [tip, base1, base2])
+        # teleport: draw letter marker
+        elif cell == FIXED_TELEPORT_A:
+            pygame.draw.circle(screen, (255, 255, 255), (rx + CELL//2, ry + CELL//2), 4, 1)
+        elif cell == FIXED_TELEPORT_B:
+            pygame.draw.circle(screen, (255, 255, 255), (rx + CELL//2, ry + CELL//2), 4)
+        # reverse: draw double-headed arrow
+        elif cell == FIXED_REVERSE:
+            cx, cy = rx + CELL // 2, ry + CELL // 2
+            pygame.draw.line(screen, (255,255,255), (cx-4, cy), (cx+4, cy), 1)
+            pygame.draw.line(screen, (255,255,255), (cx-4, cy), (cx-2, cy-2), 1)
+            pygame.draw.line(screen, (255,255,255), (cx+4, cy), (cx+2, cy+2), 1)
+        # skip: draw double chevron
+        elif cell == FIXED_SKIP:
+            cx, cy = rx + CELL // 2, ry + CELL // 2
+            pygame.draw.line(screen, (40,40,50), (cx-3, cy-3), (cx, cy), 1)
+            pygame.draw.line(screen, (40,40,50), (cx, cy), (cx-3, cy+3), 1)
+            pygame.draw.line(screen, (40,40,50), (cx, cy-3), (cx+3, cy), 1)
+            pygame.draw.line(screen, (40,40,50), (cx+3, cy), (cx, cy+3), 1)
 
 
 def draw_grid(screen, grid, agents, underneath):
@@ -511,10 +1543,15 @@ def draw_grid(screen, grid, agents, underneath):
             dim.fill(BG)
             screen.blit(dim, (rx+1, ry+1))
 
-        pygame.draw.circle(screen, AGENT_COLOR, (cx, cy), CELL // 2 - 2)
+        if a.get("evil"):
+            color = EVIL_COLOR
+        else:
+            team = a.get("team", 0)
+            color = TEAM_COLORS[team % len(TEAM_COLORS)]
+        pygame.draw.circle(screen, color, (cx, cy), CELL // 2 - 2)
         tip_x = cx + a["dx"] * (CELL // 4)
         tip_y = cy + a["dy"] * (CELL // 4)
-        pygame.draw.circle(screen, AGENT_DOT, (tip_x, tip_y), 3)
+        pygame.draw.circle(screen, (255, 255, 255), (tip_x, tip_y), 3)
 
 
 def draw_preview_cell(screen, rx, ry, cell, pc):
@@ -533,38 +1570,55 @@ def draw_preview_cell(screen, rx, ry, cell, pc):
 
 def draw_shape_preview(screen, font_sm, level, px, y):
     cells = level["cells"]
-    sx, sy = level["start"]
 
-    all_x = [x for x, _, _ in cells] + [sx]
-    all_y = [y_ for _, y_, _ in cells] + [sy]
+    if "agents" in level:
+        agent_defs = level["agents"]
+    else:
+        agent_defs = [{"x": level["start"][0], "y": level["start"][1],
+                       "dx": level["dir"][0], "dy": level["dir"][1]}]
+
+    all_x = [x for x, _, _ in cells] + [a["x"] for a in agent_defs]
+    all_y = [y_ for _, y_, _ in cells] + [a["y"] for a in agent_defs]
     min_x, min_y = min(all_x), min(all_y)
+    max_x_cell = max(all_x)
+    max_y_cell = max(all_y)
+    shape_w = max_x_cell - min_x + 1
+    shape_h = max_y_cell - min_y + 1
 
-    pc = 12
-    gap = 2
+    # scale preview to fit panel width and a max height
+    max_pw = PANEL_W - 28
+    max_ph = 160
+    gap = 1
+    pc = min(12, (max_pw - gap * (shape_w - 1)) // shape_w,
+                 (max_ph - gap * (shape_h - 1)) // shape_h)
+    pc = max(pc, 3)  # minimum visible size
 
     for cx, cy, color in cells:
         rx = px + (cx - min_x) * (pc + gap)
         ry = y + (cy - min_y) * (pc + gap)
         draw_preview_cell(screen, rx, ry, color, pc)
 
-    adx, ady = level["dir"]
-    ax = px + (sx - min_x) * (pc + gap) + pc // 2
-    ay = y + (sy - min_y) * (pc + gap) + pc // 2
-    r = pc // 2
-    tip = (ax + adx * r, ay + ady * r)
-    p1 = (ax + ady * r * 0.6, ay - adx * r * 0.6)
-    p2 = (ax - ady * r * 0.6, ay + adx * r * 0.6)
-    pygame.draw.polygon(screen, AGENT_COLOR, [tip, p1, p2])
+    for ad in agent_defs:
+        adx, ady = ad["dx"], ad["dy"]
+        ax = px + (ad["x"] - min_x) * (pc + gap) + pc // 2
+        ay = y + (ad["y"] - min_y) * (pc + gap) + pc // 2
+        r = pc // 2
+        tip = (ax + adx * r, ay + ady * r)
+        p1 = (ax + ady * r * 0.6, ay - adx * r * 0.6)
+        p2 = (ax - ady * r * 0.6, ay + adx * r * 0.6)
+        pygame.draw.polygon(screen, AGENT_COLOR, [tip, p1, p2])
 
-    max_y_cell = max(all_y)
-    shape_h = (max_y_cell - min_y + 1) * (pc + gap)
-    return y + shape_h + 4
+    preview_h = shape_h * (pc + gap)
+    return y + preview_h + 4
 
 
-def draw_panel(screen, font, font_sm, verbs, step, agents, total_spawned, peak_pop,
-               walls_left, walls_start, paused, mouse_pos, level_idx):
+def draw_panel(screen, font, font_sm, verbs_list, active_team, n_teams, step, agents,
+               total_spawned, peak_pop, walls_left, walls_start, paused, mouse_pos, level_idx,
+               evil_rules=None):
     px = GRID_PX_W
     pygame.draw.rect(screen, PANEL_BG, (px, 0, PANEL_W, WIN_H))
+    level = LEVELS[level_idx % NUM_LEVELS]
+    is_intercept = level.get("mode") == "intercept"
 
     y = 10
     screen.blit(font.render("THEY GROW UP SO FAST", True, TEXT_COLOR), (px + 10, y))
@@ -583,7 +1637,34 @@ def draw_panel(screen, font, font_sm, verbs, step, agents, total_spawned, peak_p
 
     y += 4
     sub_msg = None
-    if walls_left == 0 and len(agents) == 0:
+    evil_alive = sum(1 for a in agents if a.get("evil") and a.get("alive", True))
+    hero_alive = sum(1 for a in agents if not a.get("evil") and a.get("alive", True))
+
+    if is_intercept:
+        if evil_alive == 0 and step > 0:
+            msg, color = "INTERCEPTED!", STATUS_GREEN
+            sub_msg = "All threats neutralized. Press N."
+        elif hero_alive == 0 and step > 0:
+            msg, color = "HERO DISSOLVED", STATUS_RED
+            sub_msg = "Your agent dissolved. Try again (R)."
+        elif step >= MAX_STEPS:
+            msg, color = "TIME'S UP", STATUS_RED
+        elif paused and step == 0:
+            msg, color = "INTERCEPT MODE", STATUS_YELLOW
+            sub_msg = "Route the evil agents to dissolve."
+        elif paused:
+            msg, color = "PAUSED", STATUS_YELLOW
+        else:
+            msg, color = f"EVIL: {evil_alive} remaining", STATUS_RED
+    elif level.get("mode") == "place_agent" and paused and step == 0:
+        max_a = level.get("max_agents", 1)
+        placed = len([a for a in agents if a.get("alive", True)])
+        msg, color = "PLACE AGENT MODE", STATUS_YELLOW
+        if placed == 0:
+            sub_msg = f"Click grid to place agent ({max_a} max)"
+        else:
+            sub_msg = f"{placed}/{max_a} placed. Click=rotate. SPACE=go."
+    elif walls_left == 0 and len(agents) == 0:
         msg, color = "PERFECT!", STATUS_GREEN
         sub_msg = "Press N for next level."
     elif walls_left == 0:
@@ -627,11 +1708,48 @@ def draw_panel(screen, font, font_sm, verbs, step, agents, total_spawned, peak_p
             y += 17
     y += 8
 
-    screen.blit(font_sm.render("RULES (click to cycle):", True, TEXT_COLOR), (px + 12, y))
-    y += 20
+    # team tabs (only for per-agent-rule levels, not place_agent)
+    tab_rects = []
+    is_place = level.get("mode") == "place_agent"
+    if is_place:
+        # no clickable rules — fixed rules shown below
+        pass
+    elif n_teams > 1:
+        screen.blit(font_sm.render("AGENT RULES (TAB to switch):", True, TEXT_COLOR), (px + 12, y))
+        y += 18
+        tab_w = (PANEL_W - 24) // n_teams
+        for ti in range(n_teams):
+            tx = px + 8 + ti * (tab_w + 4)
+            active = ti == active_team
+            tc = TEAM_COLORS[ti % len(TEAM_COLORS)]
+            bg = tc if active else (40, 40, 55)
+            fg = (0, 0, 0) if active else tc
+            pygame.draw.rect(screen, bg, (tx, y, tab_w, 22))
+            label = f" {TEAM_NAMES[ti % len(TEAM_NAMES)]}"
+            screen.blit(font_sm.render(label, True, fg), (tx + 4, y + 3))
+            tab_rects.append((tx, y, tab_w, 22, ti))
+        y += 28
+    else:
+        screen.blit(font_sm.render("RULES (click to cycle):", True, TEXT_COLOR), (px + 12, y))
+        y += 20
 
+    verbs = verbs_list[active_team] if verbs_list else default_verbs()
     btn_rects = []
-    for wall_type in ASSIGNABLE_TYPES:
+
+    # show buttons for all assignable colors present in this level
+    level = LEVELS[level_idx % len(LEVELS)]
+    level_colors = set()
+    for _, _, c in level["cells"]:
+        if isinstance(c, tuple):
+            level_colors.update(c)
+        else:
+            level_colors.add(c)
+    active_assignable = list(ASSIGNABLE_TYPES)
+    for ec in EDITOR_ASSIGNABLE:
+        if ec in level_colors:
+            active_assignable.append(ec)
+
+    for wall_type in ([] if is_place else active_assignable):
         cname = COLOR_NAMES[wall_type]
         verb = verbs.get(wall_type, VERB_PASS)
         vname = VERB_NAMES[verb]
@@ -652,7 +1770,268 @@ def draw_panel(screen, font, font_sm, verbs, step, agents, total_spawned, peak_p
         btn_rects.append((bx, by, bw, bh, wall_type))
         y += bh + 5
 
+    # fixed rules display (read-only) for intercept or place_agent
+    is_place = level.get("mode") == "place_agent"
+    if (is_intercept or is_place) and evil_rules:
+        y += 8
+        rules_label = "ENEMY RULES (fixed):" if is_intercept else "RULES (fixed):"
+        rules_color = EVIL_COLOR if is_intercept else STATUS_YELLOW
+        screen.blit(font_sm.render(rules_label, True, rules_color), (px + 12, y))
+        y += 18
+        for wall_type in active_assignable:
+            cname = COLOR_NAMES[wall_type]
+            verb = evil_rules.get(wall_type, VERB_PASS)
+            vname = VERB_NAMES[verb]
+            bx, by_r = px + 8, y
+            bw, bh = PANEL_W - 16, 28
+            pygame.draw.rect(screen, (35, 25, 25), (bx, by_r, bw, bh))
+            pygame.draw.rect(screen, WCOLOR[wall_type], (bx + 4, by_r + 4, 20, bh - 8))
+            arrow_text = f"{cname}  \u2192  "
+            screen.blit(font_sm.render(arrow_text, True, (140, 100, 100)), (bx + 30, by_r + 6))
+            vx = bx + 30 + font_sm.size(arrow_text)[0]
+            screen.blit(font_sm.render(vname, True, EVIL_COLOR), (vx, by_r + 6))
+            y += bh + 3
+
+    return btn_rects, tab_rects
+
+
+# ── save / load ──
+
+SAVE_PATH = os.path.expanduser("~/.tgusf_save.json")
+
+def save_progress(stars, sim_speed, show_gridlines):
+    data = {"stars": stars, "speed": sim_speed, "gridlines": show_gridlines}
+    try:
+        with open(SAVE_PATH, "w") as f:
+            json.dump(data, f)
+    except Exception:
+        pass
+
+def load_progress():
+    try:
+        with open(SAVE_PATH) as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+
+# ── screen draw functions ──
+
+SPEED_LABELS = ["Slow", "Normal", "Fast"]
+SPEED_MS     = [400, 200, 80]
+
+STAR_CHARS = ["☆☆☆", "★☆☆", "★★☆", "★★★"]
+STAR_COLORS = [
+    (60, 60, 70),     # 0: unplayed grey
+    (100, 180, 100),  # 1: cleared green
+    (220, 200, 60),   # 2: perfect gold
+    (255, 220, 80),   # 3: efficient bright gold
+]
+
+
+def draw_title_screen(screen, font, font_sm, font_lg, mouse_pos, tick):
+    screen.fill(BG)
+    cx = WIN_W // 2
+
+    # title
+    title = font_lg.render("THEY GROW UP SO FAST", True, (220, 210, 70))
+    screen.blit(title, (cx - title.get_width() // 2, 140))
+
+    sub = font_sm.render("A puzzle game about replication", True, TEXT_DIM)
+    screen.blit(sub, (cx - sub.get_width() // 2, 200))
+
+    # animated replicator dots
+    y_line = 260
+    n_dots = 5
+    for i in range(n_dots):
+        dx = ((tick * 2 + i * 60) % (WIN_W + 40)) - 20
+        color = TEAM_COLORS[i % len(TEAM_COLORS)]
+        pygame.draw.circle(screen, color, (dx, y_line), 6)
+        pygame.draw.circle(screen, (255, 255, 255), (dx + 4, y_line), 2)
+
+    # menu buttons
+    btn_rects = []
+    btns = [("PLAY", "play"), ("EDITOR", "editor"), ("SETTINGS", "settings")]
+    for i, (label, action) in enumerate(btns):
+        bw, bh = 200, 40
+        bx = cx - bw // 2
+        by = 310 + i * 55
+        hovered = bx <= mouse_pos[0] < bx + bw and by <= mouse_pos[1] < by + bh
+        bg = (60, 60, 80) if hovered else (40, 40, 55)
+        pygame.draw.rect(screen, bg, (bx, by, bw, bh), border_radius=6)
+        pygame.draw.rect(screen, (100, 100, 120), (bx, by, bw, bh), 1, border_radius=6)
+        txt = font.render(label, True, TEXT_COLOR)
+        screen.blit(txt, (cx - txt.get_width() // 2, by + 10))
+        btn_rects.append((bx, by, bw, bh, action))
+
+    # version
+    ver = font_sm.render("v1.0 — Press E for editor anytime", True, (60, 60, 70))
+    screen.blit(ver, (cx - ver.get_width() // 2, WIN_H - 40))
+
     return btn_rects
+
+
+def draw_level_select(screen, font, font_sm, stars, mouse_pos, scroll_y):
+    screen.fill(BG)
+    cx = WIN_W // 2
+
+    title = font.render("SELECT LEVEL", True, TEXT_COLOR)
+    screen.blit(title, (cx - title.get_width() // 2, 15))
+    hint = font_sm.render("Click to play — ESC back to menu", True, TEXT_DIM)
+    screen.blit(hint, (cx - hint.get_width() // 2, 38))
+
+    cols = 8
+    tile_w, tile_h = 80, 65
+    gap = 10
+    grid_w = cols * (tile_w + gap) - gap
+    ox = (WIN_W - grid_w) // 2
+    oy = 65 - scroll_y
+
+    btn_rects = []
+    for i in range(NUM_LEVELS):
+        col = i % cols
+        row = i // cols
+        tx = ox + col * (tile_w + gap)
+        ty = oy + row * (tile_h + gap)
+
+        if ty + tile_h < 55 or ty > WIN_H:
+            continue  # off screen
+
+        star = stars[i] if i < len(stars) else 0
+        hovered = tx <= mouse_pos[0] < tx + tile_w and ty <= mouse_pos[1] < ty + tile_h
+
+        # tile background
+        if hovered:
+            bg = (55, 55, 75)
+        elif star >= 3:
+            bg = (40, 45, 30)
+        elif star >= 1:
+            bg = (35, 40, 35)
+        else:
+            bg = (30, 30, 40)
+
+        pygame.draw.rect(screen, bg, (tx, ty, tile_w, tile_h), border_radius=4)
+        pygame.draw.rect(screen, (70, 70, 85), (tx, ty, tile_w, tile_h), 1, border_radius=4)
+
+        # level number
+        num = font.render(str(i + 1), True, TEXT_COLOR)
+        screen.blit(num, (tx + tile_w // 2 - num.get_width() // 2, ty + 6))
+
+        # stars
+        star_text = STAR_CHARS[min(star, 3)]
+        star_color = STAR_COLORS[min(star, 3)]
+        st = font_sm.render(star_text, True, star_color)
+        screen.blit(st, (tx + tile_w // 2 - st.get_width() // 2, ty + 38))
+
+        btn_rects.append((tx, ty, tile_w, tile_h, i))
+
+    return btn_rects
+
+
+def draw_settings_screen(screen, font, font_sm, sim_speed, show_gridlines, mouse_pos):
+    screen.fill(BG)
+    cx = WIN_W // 2
+
+    title = font.render("SETTINGS", True, TEXT_COLOR)
+    screen.blit(title, (cx - title.get_width() // 2, 80))
+
+    btn_rects = []
+    y = 160
+
+    # sim speed
+    screen.blit(font_sm.render("Sim Speed:", True, TEXT_DIM), (cx - 140, y))
+    for i, label in enumerate(SPEED_LABELS):
+        bw, bh = 80, 30
+        bx = cx - 140 + 100 + i * (bw + 10)
+        hovered = bx <= mouse_pos[0] < bx + bw and y <= mouse_pos[1] < y + bh
+        active = i == sim_speed
+        bg = (80, 180, 100) if active else (55, 55, 70) if hovered else (40, 40, 52)
+        pygame.draw.rect(screen, bg, (bx, y, bw, bh), border_radius=4)
+        txt = font_sm.render(label, True, (0, 0, 0) if active else TEXT_COLOR)
+        screen.blit(txt, (bx + bw // 2 - txt.get_width() // 2, y + 7))
+        btn_rects.append((bx, y, bw, bh, ("speed", i)))
+    y += 55
+
+    # grid lines
+    screen.blit(font_sm.render("Grid Lines:", True, TEXT_DIM), (cx - 140, y))
+    for i, label in enumerate(["Off", "On"]):
+        bw, bh = 80, 30
+        bx = cx - 140 + 100 + i * (bw + 10)
+        hovered = bx <= mouse_pos[0] < bx + bw and y <= mouse_pos[1] < y + bh
+        active = (i == 1) == show_gridlines
+        bg = (80, 180, 100) if active else (55, 55, 70) if hovered else (40, 40, 52)
+        pygame.draw.rect(screen, bg, (bx, y, bw, bh), border_radius=4)
+        txt = font_sm.render(label, True, (0, 0, 0) if active else TEXT_COLOR)
+        screen.blit(txt, (bx + bw // 2 - txt.get_width() // 2, y + 7))
+        btn_rects.append((bx, y, bw, bh, ("gridlines", i == 1)))
+    y += 55
+
+    # reset progress
+    bw, bh = 180, 34
+    bx = cx - bw // 2
+    hovered = bx <= mouse_pos[0] < bx + bw and y <= mouse_pos[1] < y + bh
+    bg = (180, 60, 60) if hovered else (80, 40, 40)
+    pygame.draw.rect(screen, bg, (bx, y, bw, bh), border_radius=4)
+    txt = font_sm.render("Reset Progress", True, TEXT_COLOR)
+    screen.blit(txt, (cx - txt.get_width() // 2, y + 8))
+    btn_rects.append((bx, y, bw, bh, ("reset", True)))
+    y += 55
+
+    # back
+    bw, bh = 120, 34
+    bx = cx - bw // 2
+    by = y + 20
+    hovered = bx <= mouse_pos[0] < bx + bw and by <= mouse_pos[1] < by + bh
+    bg = (55, 55, 70) if hovered else (40, 40, 52)
+    pygame.draw.rect(screen, bg, (bx, by, bw, bh), border_radius=4)
+    txt = font_sm.render("Back", True, TEXT_COLOR)
+    screen.blit(txt, (cx - txt.get_width() // 2, by + 8))
+    btn_rects.append((bx, by, bw, bh, ("back", True)))
+
+    return btn_rects
+
+
+def draw_pause_overlay(screen, font, font_sm, mouse_pos):
+    # semi-transparent overlay
+    overlay = pygame.Surface((WIN_W, WIN_H))
+    overlay.set_alpha(160)
+    overlay.fill((0, 0, 0))
+    screen.blit(overlay, (0, 0))
+
+    cx = WIN_W // 2
+    cy = WIN_H // 2
+
+    title = font.render("PAUSED", True, STATUS_YELLOW)
+    screen.blit(title, (cx - title.get_width() // 2, cy - 80))
+
+    btn_rects = []
+    btns = [("Resume (SPACE)", "resume"), ("Restart (R)", "restart"),
+            ("Level Select (L)", "levels"), ("Quit (ESC)", "quit")]
+    for i, (label, action) in enumerate(btns):
+        bw, bh = 220, 32
+        bx = cx - bw // 2
+        by = cy - 30 + i * 42
+        hovered = bx <= mouse_pos[0] < bx + bw and by <= mouse_pos[1] < by + bh
+        bg = (55, 55, 75) if hovered else (35, 35, 50)
+        pygame.draw.rect(screen, bg, (bx, by, bw, bh), border_radius=4)
+        txt = font_sm.render(label, True, TEXT_COLOR)
+        screen.blit(txt, (cx - txt.get_width() // 2, by + 7))
+        btn_rects.append((bx, by, bw, bh, action))
+
+    return btn_rects
+
+
+def calc_stars(walls_left, agents_alive, step, level):
+    """Calculate star rating: 0=fail, 1=cleared, 2=perfect, 3=efficient."""
+    if walls_left > 0:
+        return 0
+    if agents_alive > 0:
+        return 1
+    # perfect — check efficiency
+    par = level.get("par", len(level.get("cells", [])) * 3)
+    if step <= par:
+        return 3
+    return 2
 
 
 # ── main ──
@@ -664,75 +2043,743 @@ def main():
     clock = pygame.time.Clock()
     font    = pygame.font.SysFont("consolas", 15)
     font_sm = pygame.font.SysFont("consolas", 13)
+    font_lg = pygame.font.SysFont("consolas", 26, bold=True)
+
+    # ── screen state ──
+    screen_mode = "title"  # "title" | "play" | "level_select" | "settings"
+    stars = [0] * NUM_LEVELS
+    sim_speed = 1
+    show_gridlines = False
+    show_pause_menu = False
+    level_select_scroll = 0
+    title_tick = 0
+
+    # load saved progress
+    saved = load_progress()
+    if saved:
+        for i, s in enumerate(saved.get("stars", [])):
+            if i < len(stars):
+                stars[i] = s
+        sim_speed = saved.get("speed", 1)
+        show_gridlines = saved.get("gridlines", False)
 
     level_idx = 0
-    verbs = {WALL_RED: VERB_PASS, WALL_YELLOW: VERB_PASS, WALL_BLUE: VERB_PASS}
+    active_team = 0
+
+    def default_verbs():
+        v = {WALL_RED: VERB_PASS, WALL_YELLOW: VERB_PASS, WALL_BLUE: VERB_PASS}
+        for ec in EDITOR_ASSIGNABLE:
+            v[ec] = VERB_PASS
+        return v
+
+    def num_teams():
+        level = LEVELS[level_idx]
+        if level.get("per_agent_rules"):
+            if "agents" in level:
+                return len(level["agents"])
+            return 1
+        return 1
+
+    verbs_list = [default_verbs()]
 
     grid, agents, underneath = make_grid(LEVELS[level_idx])
     walls_start = count_walls(grid, underneath)
     paused = True
     step = 0
-    total_spawned = 1
-    peak_pop = 1
+    total_spawned = len(agents)
+    peak_pop = len(agents)
     last_sim_tick = 0
     btn_hit_rects = []
+    tab_hit_rects = []
 
     def reset_level():
-        nonlocal grid, agents, underneath, walls_start, paused, step, total_spawned, peak_pop
-        grid, agents, underneath = make_grid(LEVELS[level_idx])
+        nonlocal grid, agents, underneath, walls_start, paused, step, total_spawned, peak_pop, place_agent_pos
+        level = LEVELS[level_idx % NUM_LEVELS]
+
+        if level.get("mode") == "place_agent":
+            # load grid but no agents — player places them
+            grid = [[EMPTY]*GRID_W for _ in range(GRID_H)]
+            cells = level["cells"]
+            xs = [x for x, y, c in cells]; ys = [y for x, y, c in cells]
+            min_x, max_x = min(xs), max(xs)
+            min_y, max_y = min(ys), max(ys)
+            shape_w = max_x - min_x + 1; shape_h = max_y - min_y + 1
+            ox = (GRID_W - shape_w) // 2 - min_x
+            oy = (GRID_H - shape_h) // 2 - min_y
+            for x, y, c in cells:
+                grid[y + oy][x + ox] = c
+            agents = []
+            place_agent_pos = []
+            underneath = {}
+        else:
+            grid, agents, underneath = make_grid(level)
+            place_agent_pos = []
+
         walls_start = count_walls(grid, underneath)
         paused = True
         step = 0
-        total_spawned = 1
-        peak_pop = 1
+        total_spawned = max(len(agents), 1)
+        peak_pop = max(len(agents), 1)
 
     def change_level(new_idx):
-        nonlocal level_idx, verbs
+        nonlocal level_idx, verbs_list, active_team, screen_mode
         level_idx = new_idx % NUM_LEVELS
-        verbs = {WALL_RED: VERB_PASS, WALL_YELLOW: VERB_PASS, WALL_BLUE: VERB_PASS}
+        nt = num_teams()
+        verbs_list = [default_verbs() for _ in range(nt)]
+        active_team = 0
+        screen_mode = "play"
         reset_level()
+
+    # place_agent mode state
+    place_agent_pos = []  # list of {"x","y","dx","dy"} for player-placed agents
+
+    def is_place_agent():
+        return LEVELS[level_idx % NUM_LEVELS].get("mode") == "place_agent"
+
+    def start_level(idx):
+        nonlocal level_idx, verbs_list, active_team, screen_mode, show_pause_menu, place_agent_pos
+        level_idx = idx % NUM_LEVELS
+        level = LEVELS[level_idx]
+        screen_mode = "play"
+        show_pause_menu = False
+        place_agent_pos = []
+
+        if level.get("mode") == "place_agent":
+            # fixed rules — load from level
+            fr = level.get("fixed_rules", {})
+            verbs_list = [fr]
+            active_team = 0
+        else:
+            nt = num_teams()
+            verbs_list = [default_verbs() for _ in range(nt)]
+            active_team = 0
+        reset_level()
+
+    # ── editor state ──
+    editor_mode = False
+    editor_state = {
+        "selected": WALL_RED,
+        "sandwich_stack": [],
+        "num_agents": 1,
+        "per_agent": False,
+        "agent_place_mode": False,
+        "status_msg": "",
+        "level_code": "",
+        "undo": [],
+        "clear_pending": False,
+        "clear_tick": 0,
+    }
+    editor_agents = []  # agent start positions in editor
+    editor_palette_rects = []
+    editor_action_rects = []
+
+    def editor_save_undo():
+        import copy
+        snap = (copy.deepcopy(grid), copy.deepcopy(editor_agents))
+        editor_state["undo"].append(snap)
+        if len(editor_state["undo"]) > 50:
+            editor_state["undo"].pop(0)
+
+    def editor_undo():
+        nonlocal grid, editor_agents
+        if editor_state["undo"]:
+            grid, editor_agents = editor_state["undo"].pop()
+
+    def enter_editor():
+        nonlocal editor_mode, screen_mode, grid, editor_agents, underneath
+        editor_mode = True
+        screen_mode = "play"
+        grid = [[EMPTY]*GRID_W for _ in range(GRID_H)]
+        editor_agents = []
+        underneath = {}
+        editor_state["undo"] = []
+        editor_state["status_msg"] = "Editor mode. Place cells, then T to test."
+        editor_state["level_code"] = ""
+        editor_state["sandwich_stack"] = []
+
+    def exit_editor():
+        nonlocal editor_mode, screen_mode
+        editor_mode = False
+        screen_mode = "play"
+        reset_level()
+
+    def editor_test():
+        """Build a level from grid, check solvable, switch to play mode."""
+        nonlocal editor_mode, screen_mode, grid, agents, underneath, walls_start
+        nonlocal paused, step, total_spawned, peak_pop
+        nonlocal level_idx, verbs_list, active_team
+
+        if not editor_agents:
+            editor_state["status_msg"] = "Place at least 1 agent (Shift+click)"
+            return
+        if count_walls(grid, {}) == 0:
+            editor_state["status_msg"] = "Place some cells first!"
+            return
+
+        # build level from current grid
+        level = grid_to_level(grid, [], {})
+        if not level:
+            editor_state["status_msg"] = "No cells to test"
+            return
+        level["agents"] = [{"x": a["x"], "y": a["y"], "dx": a["dx"], "dy": a["dy"],
+                            "team": a.get("team", 0)} for a in editor_agents]
+        if editor_state["per_agent"]:
+            level["per_agent_rules"] = True
+
+        # add as temp level and switch to it
+        if len(LEVELS) > NUM_LEVELS:
+            LEVELS.pop()  # remove previous test level
+        LEVELS.append(level)
+        level_idx = len(LEVELS) - 1
+        nt = len(set(a.get("team", 0) for a in editor_agents)) if editor_state["per_agent"] else 1
+        verbs_list = [default_verbs() for _ in range(nt)]
+        active_team = 0
+
+        grid, agents, underneath = make_grid(level)
+        walls_start = count_walls(grid, underneath)
+        paused = True
+        step = 0
+        total_spawned = len(agents)
+        peak_pop = len(agents)
+        editor_mode = False
+        screen_mode = "play"
+        editor_state["status_msg"] = ""
+
+    def editor_copy():
+        level = grid_to_level(grid, [], {})
+        if not level:
+            editor_state["status_msg"] = "No cells to copy!"
+            return
+        if not editor_agents:
+            editor_state["status_msg"] = "Place agent first! (click PLACE AGENT)"
+            return
+        level["agents"] = [{"x": a["x"], "y": a["y"], "dx": a["dx"], "dy": a["dy"],
+                            "team": a.get("team", 0)} for a in editor_agents]
+        if editor_state["per_agent"]:
+            level["per_agent_rules"] = True
+        code = serialize_level(level)
+        if code:
+            copied = False
+            try:
+                pygame.scrap.put(pygame.SCRAP_TEXT, code.encode())
+                copied = True
+            except Exception:
+                pass
+            # also try pyperclip-style subprocess fallback on macOS
+            if not copied:
+                try:
+                    import subprocess
+                    subprocess.run(["pbcopy"], input=code.encode(), check=True)
+                    copied = True
+                except Exception:
+                    pass
+            editor_state["level_code"] = code
+            if copied:
+                editor_state["status_msg"] = f"Copied! ({len(code)} chars)"
+            else:
+                editor_state["status_msg"] = f"Code shown below (copy manually)"
+
+    def editor_paste():
+        nonlocal grid, editor_agents, underneath
+        code = None
+        # try pygame scrap first
+        try:
+            raw = pygame.scrap.get(pygame.SCRAP_TEXT)
+            if raw:
+                code = raw.decode().strip().rstrip('\x00')
+        except Exception:
+            pass
+        # fallback: macOS pbpaste
+        if not code:
+            try:
+                import subprocess
+                result = subprocess.run(["pbpaste"], capture_output=True, text=True)
+                if result.returncode == 0 and result.stdout.strip():
+                    code = result.stdout.strip()
+            except Exception:
+                pass
+        if not code:
+            editor_state["status_msg"] = "Clipboard empty"
+            return
+
+        level = deserialize_level(code)
+        if not level:
+            editor_state["status_msg"] = "Invalid level code"
+            return
+
+        editor_save_undo()
+        grid = [[EMPTY]*GRID_W for _ in range(GRID_H)]
+        underneath = {}
+
+        # center the level
+        cells = level["cells"]
+        xs = [x for x, y, c in cells]; ys = [y for x, y, c in cells]
+        ox = (GRID_W - (max(xs) - min(xs) + 1)) // 2 - min(xs)
+        oy = (GRID_H - (max(ys) - min(ys) + 1)) // 2 - min(ys)
+
+        for x, y, c in cells:
+            gx, gy = x + ox, y + oy
+            if 0 <= gx < GRID_W and 0 <= gy < GRID_H:
+                grid[gy][gx] = c
+
+        editor_agents = []
+        for a in level.get("agents", []):
+            editor_agents.append({"x": a["x"] + ox, "y": a["y"] + oy,
+                                  "dx": a["dx"], "dy": a["dy"], "team": a.get("team", 0)})
+
+        editor_state["per_agent"] = level.get("per_agent_rules", False)
+        editor_state["num_agents"] = len(editor_agents)
+        editor_state["level_code"] = code
+        editor_state["status_msg"] = "Level loaded OK"
+
+    # init scrap for clipboard
+    try:
+        pygame.scrap.init()
+    except Exception:
+        pass
+
+    # hit rect storage
+    title_btn_rects = []
+    level_select_rects = []
+    settings_rects = []
+    pause_btn_rects = []
 
     running = True
     while running:
         now = pygame.time.get_ticks()
         mouse_pos = pygame.mouse.get_pos()
+        title_tick += 1
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
+                save_progress(stars, sim_speed, show_gridlines)
                 running = False
+
             elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_SPACE:
-                    paused = not paused
-                elif event.key == pygame.K_r:
-                    reset_level()
-                elif event.key == pygame.K_n:
-                    change_level(level_idx + 1)
-                elif event.key == pygame.K_p:
-                    change_level(level_idx - 1)
-                elif event.key == pygame.K_ESCAPE:
-                    running = False
+
+                # ── title screen ──
+                if screen_mode == "title":
+                    if event.key == pygame.K_ESCAPE:
+                        save_progress(stars, sim_speed, show_gridlines)
+                        running = False
+                    elif event.key == pygame.K_e:
+                        enter_editor()
+                    elif event.key == pygame.K_RETURN:
+                        screen_mode = "level_select"
+
+                # ── level select ──
+                elif screen_mode == "level_select":
+                    if event.key == pygame.K_ESCAPE:
+                        screen_mode = "title"
+
+                # ── settings ──
+                elif screen_mode == "settings":
+                    if event.key == pygame.K_ESCAPE:
+                        save_progress(stars, sim_speed, show_gridlines)
+                        screen_mode = "title"
+
+                # ── play mode ──
+                elif screen_mode == "play":
+                    if event.key == pygame.K_ESCAPE:
+                        if editor_mode:
+                            exit_editor()
+                            screen_mode = "level_select"
+                        elif show_pause_menu:
+                            save_progress(stars, sim_speed, show_gridlines)
+                            screen_mode = "level_select"
+                        elif step > 0 and not editor_mode:
+                            show_pause_menu = True
+                            paused = True
+                        else:
+                            screen_mode = "level_select"
+
+                    elif event.key == pygame.K_e:
+                        if editor_mode:
+                            exit_editor()
+                            screen_mode = "level_select"
+                        else:
+                            enter_editor()
+
+                    elif editor_mode:
+                        if event.key == pygame.K_h:
+                            editor_state["show_help"] = not editor_state.get("show_help", False)
+                        elif event.key == pygame.K_t:
+                            editor_test()
+                        elif event.key == pygame.K_c:
+                            editor_copy()
+                        elif event.key == pygame.K_v:
+                            editor_paste()
+                        elif event.key == pygame.K_z:
+                            editor_undo()
+                        elif event.key == pygame.K_x:
+                            if editor_state["clear_pending"] and (now - editor_state["clear_tick"]) < 1500:
+                                editor_save_undo()
+                                grid = [[EMPTY]*GRID_W for _ in range(GRID_H)]
+                                editor_agents = []
+                                editor_state["status_msg"] = "Cleared!"
+                                editor_state["clear_pending"] = False
+                            else:
+                                editor_state["clear_pending"] = True
+                                editor_state["clear_tick"] = now
+                                editor_state["status_msg"] = "Press X again to confirm clear"
+                        elif event.key == pygame.K_s:
+                            sel = editor_state["selected"]
+                            stack = editor_state["sandwich_stack"]
+                            if len(stack) < 3:
+                                stack.append(sel)
+                                # update brush to current sandwich
+                                if len(stack) > 1:
+                                    editor_state["brush"] = tuple(stack)
+                                else:
+                                    editor_state["brush"] = stack[0]
+                                editor_state["status_msg"] = f"Stack: {len(stack)} layers. S=add more or click to place"
+                            else:
+                                editor_state["status_msg"] = "Max 3 layers"
+                        elif event.key == pygame.K_d:
+                            editor_state["sandwich_stack"] = []
+                            editor_state["brush"] = editor_state["selected"]
+                            editor_state["status_msg"] = "Stack cleared, brush reset"
+                        elif event.key == pygame.K_1:
+                            editor_state["num_agents"] = 1
+                            editor_state["per_agent"] = False
+                        elif event.key == pygame.K_2:
+                            editor_state["num_agents"] = 2
+                        elif event.key == pygame.K_3:
+                            editor_state["num_agents"] = 3
+                        elif event.key == pygame.K_4:
+                            editor_state["num_agents"] = 4
+                        elif event.key == pygame.K_a:
+                            editor_state["per_agent"] = not editor_state["per_agent"]
+                            editor_state["status_msg"] = f"Per-agent rules: {'ON' if editor_state['per_agent'] else 'OFF'}"
+
+                    elif show_pause_menu:
+                        if event.key == pygame.K_SPACE:
+                            show_pause_menu = False
+                            paused = False
+                        elif event.key == pygame.K_r:
+                            show_pause_menu = False
+                            reset_level()
+                        elif event.key == pygame.K_l:
+                            show_pause_menu = False
+                            screen_mode = "level_select"
+
+                    else:
+                        if event.key == pygame.K_SPACE:
+                            paused = not paused
+                        elif event.key == pygame.K_r:
+                            reset_level()
+                        elif event.key == pygame.K_n:
+                            change_level(level_idx + 1)
+                        elif event.key == pygame.K_p:
+                            change_level(level_idx - 1)
+                        elif event.key == pygame.K_l:
+                            screen_mode = "level_select"
+                        elif event.key == pygame.K_TAB:
+                            if num_teams() > 1:
+                                active_team = (active_team + 1) % num_teams()
+
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                for bx, by, bw, bh, wall_type in btn_hit_rects:
-                    if bx <= mouse_pos[0] < bx + bw and by <= mouse_pos[1] < by + bh:
-                        verbs[wall_type] = (verbs[wall_type] + 1) % VERB_COUNT
-                        break
 
-        walls_left = count_walls(grid, underneath)
-        game_over = (walls_left == 0) or (len(agents) == 0 and step > 0) or (step >= MAX_STEPS)
-        if not paused and not game_over and now - last_sim_tick >= SIM_TICK_MS:
-            last_sim_tick = now
-            agents, spawned = sim_step(agents, grid, verbs, underneath)
-            step += 1
-            total_spawned += spawned
-            if len(agents) > peak_pop:
-                peak_pop = len(agents)
+                if screen_mode == "title":
+                    for bx, by, bw, bh, action in title_btn_rects:
+                        if bx <= mouse_pos[0] < bx + bw and by <= mouse_pos[1] < by + bh:
+                            if action == "play":
+                                screen_mode = "level_select"
+                            elif action == "editor":
+                                enter_editor()
+                            elif action == "settings":
+                                screen_mode = "settings"
+                            break
 
-        walls_left = count_walls(grid, underneath)
-        screen.fill(BG)
-        draw_grid(screen, grid, agents, underneath)
-        btn_hit_rects = draw_panel(screen, font, font_sm, verbs, step, agents,
-                                   total_spawned, peak_pop, walls_left, walls_start,
-                                   paused, mouse_pos, level_idx)
+                elif screen_mode == "level_select":
+                    for bx, by, bw, bh, idx in level_select_rects:
+                        if bx <= mouse_pos[0] < bx + bw and by <= mouse_pos[1] < by + bh:
+                            start_level(idx)
+                            break
+
+                elif screen_mode == "settings":
+                    for bx, by, bw, bh, (key, val) in settings_rects:
+                        if bx <= mouse_pos[0] < bx + bw and by <= mouse_pos[1] < by + bh:
+                            if key == "speed":
+                                sim_speed = val
+                            elif key == "gridlines":
+                                show_gridlines = val
+                            elif key == "reset":
+                                stars = [0] * NUM_LEVELS
+                                save_progress(stars, sim_speed, show_gridlines)
+                            elif key == "back":
+                                save_progress(stars, sim_speed, show_gridlines)
+                                screen_mode = "title"
+                            break
+
+                elif screen_mode == "play" and show_pause_menu:
+                    for bx, by, bw, bh, action in pause_btn_rects:
+                        if bx <= mouse_pos[0] < bx + bw and by <= mouse_pos[1] < by + bh:
+                            if action == "resume":
+                                show_pause_menu = False
+                                paused = False
+                            elif action == "restart":
+                                show_pause_menu = False
+                                reset_level()
+                            elif action == "levels":
+                                show_pause_menu = False
+                                screen_mode = "level_select"
+                            elif action == "quit":
+                                save_progress(stars, sim_speed, show_gridlines)
+                                screen_mode = "title"
+                            break
+
+                elif screen_mode == "play":
+                    if editor_mode:
+                        mx, my = mouse_pos
+                        gx, gy = mx // CELL, my // CELL
+                        if mx < GRID_PX_W and 0 <= gx < GRID_W and 0 <= gy < GRID_H:
+                            agent_mode = editor_state.get("agent_place_mode", False)
+                            if agent_mode or (pygame.key.get_mods() & pygame.KMOD_SHIFT):
+                                # agent placement mode
+                                existing = [a for a in editor_agents if a["x"] == gx and a["y"] == gy]
+                                if existing:
+                                    a = existing[0]
+                                    dirs = [(1,0),(0,1),(-1,0),(0,-1)]
+                                    cur = (a["dx"], a["dy"])
+                                    idx = dirs.index(cur) if cur in dirs else 0
+                                    if idx < 3:
+                                        a["dx"], a["dy"] = dirs[idx + 1]
+                                        editor_state["status_msg"] = f"Agent rotated"
+                                    else:
+                                        editor_agents.remove(a)
+                                        editor_state["status_msg"] = "Agent removed"
+                                else:
+                                    if len(editor_agents) < editor_state["num_agents"]:
+                                        team = len(editor_agents)
+                                        editor_agents.append({"x": gx, "y": gy, "dx": 1, "dy": 0, "team": team})
+                                        grid[gy][gx] = EMPTY
+                                        editor_state["status_msg"] = f"Agent {team+1} placed (click to rotate)"
+                                    else:
+                                        editor_state["status_msg"] = f"Max {editor_state['num_agents']} agents"
+                            else:
+                                editor_save_undo()
+                                # use current brush (persists until changed)
+                                brush = editor_state.get("brush", editor_state["selected"])
+                                grid[gy][gx] = brush
+                        else:
+                            # panel clicks
+                            for bx, by, bw, bh, cell_type in editor_palette_rects:
+                                if bx <= mx < bx + bw and by <= my < by + bh:
+                                    editor_state["selected"] = cell_type
+                                    editor_state["brush"] = cell_type  # update brush
+                                    editor_state["agent_place_mode"] = False
+                                    break
+                            for bx, by, bw, bh, key in editor_action_rects:
+                                if bx <= mx < bx + bw and by <= my < by + bh:
+                                    if key == "test":
+                                        editor_test()
+                                    elif key == "copy":
+                                        editor_copy()
+                                    elif key == "paste":
+                                        editor_paste()
+                                    elif key == "clear":
+                                        if editor_state["clear_pending"] and (now - editor_state["clear_tick"]) < 1500:
+                                            editor_save_undo()
+                                            grid = [[EMPTY]*GRID_W for _ in range(GRID_H)]
+                                            editor_agents = []
+                                            editor_state["status_msg"] = "Cleared!"
+                                            editor_state["clear_pending"] = False
+                                        else:
+                                            editor_state["clear_pending"] = True
+                                            editor_state["clear_tick"] = now
+                                            editor_state["status_msg"] = "Click Clear again to confirm"
+                                    elif key == "agent_toggle":
+                                        editor_state["agent_place_mode"] = not editor_state["agent_place_mode"]
+                                    elif key == "help_toggle":
+                                        editor_state["show_help"] = not editor_state.get("show_help", False)
+                                    elif key == "per_agent_toggle":
+                                        editor_state["per_agent"] = not editor_state["per_agent"]
+                                        editor_state["status_msg"] = f"Per-agent: {'ON' if editor_state['per_agent'] else 'OFF'}"
+                                    elif isinstance(key, tuple) and key[0] == "agent_count":
+                                        editor_state["num_agents"] = key[1]
+                                        if key[1] == 1:
+                                            editor_state["per_agent"] = False
+                                    break
+                    elif is_place_agent() and step == 0:
+                        # place_agent mode: click grid to place/rotate agent before running
+                        mx, my = mouse_pos
+                        gx, gy = mx // CELL, my // CELL
+                        if mx < GRID_PX_W and 0 <= gx < GRID_W and 0 <= gy < GRID_H:
+                            # only place on empty cells (not on walls)
+                            if grid[gy][gx] == EMPTY or grid[gy][gx] == AGENT:
+                                existing = [a for a in agents if a["x"] == gx and a["y"] == gy]
+                                if existing:
+                                    a = existing[0]
+                                    dirs = [(1,0),(0,1),(-1,0),(0,-1)]
+                                    cur = (a["dx"], a["dy"])
+                                    idx = dirs.index(cur) if cur in dirs else 0
+                                    if idx < 3:
+                                        a["dx"], a["dy"] = dirs[idx + 1]
+                                    else:
+                                        # remove agent
+                                        grid[gy][gx] = EMPTY
+                                        agents.remove(a)
+                                        place_agent_pos = [{"x":a2["x"],"y":a2["y"],"dx":a2["dx"],"dy":a2["dy"]} for a2 in agents]
+                                elif len(agents) < LEVELS[level_idx % NUM_LEVELS].get("max_agents", 1):
+                                    new_a = {"x": gx, "y": gy, "dx": 1, "dy": 0, "alive": True, "team": 0}
+                                    agents.append(new_a)
+                                    grid[gy][gx] = AGENT
+                                    total_spawned = len(agents)
+                                    peak_pop = len(agents)
+                                    place_agent_pos = [{"x":a2["x"],"y":a2["y"],"dx":a2["dx"],"dy":a2["dy"]} for a2 in agents]
+                    else:
+                        for tbx, tby, tbw, tbh, tidx in tab_hit_rects:
+                            if tbx <= mouse_pos[0] < tbx + tbw and tby <= mouse_pos[1] < tby + tbh:
+                                active_team = tidx
+                                break
+                        for bx, by, bw, bh, wall_type in btn_hit_rects:
+                            if bx <= mouse_pos[0] < bx + bw and by <= mouse_pos[1] < by + bh:
+                                verbs_list[active_team][wall_type] = (verbs_list[active_team][wall_type] + 1) % VERB_COUNT
+                                break
+
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
+                if screen_mode == "play" and editor_mode:
+                    mx, my = mouse_pos
+                    gx, gy = mx // CELL, my // CELL
+                    if mx < GRID_PX_W and 0 <= gx < GRID_W and 0 <= gy < GRID_H:
+                        editor_save_undo()
+                        grid[gy][gx] = EMPTY
+                        editor_agents = [a for a in editor_agents if not (a["x"] == gx and a["y"] == gy)]
+
+            elif event.type == pygame.MOUSEWHEEL and screen_mode == "level_select":
+                level_select_scroll = max(0, level_select_scroll - event.y * 30)
+
+        # ── update ──
+        tick_ms = SPEED_MS[sim_speed]
+
+        if screen_mode == "play" and not editor_mode and not show_pause_menu:
+            cur_level = LEVELS[level_idx % NUM_LEVELS]
+            cur_evil_rules = cur_level.get("evil_rules")
+            is_intercept = cur_level.get("mode") == "intercept"
+            walls_left = count_walls(grid, underneath)
+
+            evil_alive = sum(1 for a in agents if a.get("evil") and a.get("alive", True))
+            hero_alive = sum(1 for a in agents if not a.get("evil") and a.get("alive", True))
+
+            if is_intercept:
+                game_over = (evil_alive == 0 and step > 0) or (hero_alive == 0 and step > 0) or (step >= MAX_STEPS)
+            else:
+                game_over = (walls_left == 0) or (len(agents) == 0 and step > 0) or (step >= MAX_STEPS)
+
+            if game_over and step > 0:
+                new_stars = calc_stars(walls_left, len(agents), step, cur_level)
+                if is_intercept and evil_alive == 0:
+                    new_stars = max(new_stars, 2)  # at least "perfect" for intercept win
+                if level_idx < len(stars) and new_stars > stars[level_idx]:
+                    stars[level_idx] = new_stars
+                    save_progress(stars, sim_speed, show_gridlines)
+
+            if not paused and not game_over and now - last_sim_tick >= tick_ms:
+                last_sim_tick = now
+                agents, spawned = sim_step(agents, grid, verbs_list, underneath, cur_evil_rules)
+                step += 1
+                total_spawned += spawned
+                if len(agents) > peak_pop:
+                    peak_pop = len(agents)
+
+        # ── draw ──
+        if screen_mode == "title":
+            title_btn_rects = draw_title_screen(screen, font, font_sm, font_lg, mouse_pos, title_tick)
+
+        elif screen_mode == "level_select":
+            level_select_rects = draw_level_select(screen, font, font_sm, stars, mouse_pos, level_select_scroll)
+
+        elif screen_mode == "settings":
+            settings_rects = draw_settings_screen(screen, font, font_sm, sim_speed, show_gridlines, mouse_pos)
+
+        elif screen_mode == "play":
+            screen.fill(BG)
+            if editor_mode:
+                draw_editor_grid(screen, grid, editor_agents, underneath)
+                mx, my = mouse_pos
+                if mx < GRID_PX_W:
+                    gx, gy = mx // CELL, my // CELL
+                    if 0 <= gx < GRID_W and 0 <= gy < GRID_H:
+                        pygame.draw.rect(screen, (80, 80, 100), (gx * CELL, gy * CELL, CELL, CELL), 1)
+                editor_palette_rects, editor_action_rects = draw_editor_panel(
+                    screen, font, font_sm, editor_state, mouse_pos)
+
+                # help overlay on grid
+                if editor_state.get("show_help"):
+                    overlay = pygame.Surface((GRID_PX_W, WIN_H))
+                    overlay.set_alpha(220)
+                    overlay.fill((20, 20, 30))
+                    screen.blit(overlay, (0, 0))
+                    hx, hy = 30, 30
+                    screen.blit(font.render("EDITOR CONTROLS", True, (255, 200, 80)), (hx, hy))
+                    hy += 30
+                    help_lines = [
+                        ("GRID", ""),
+                        ("  Left-click", "Place selected cell"),
+                        ("  Right-click", "Erase cell"),
+                        ("  Shift+click", "Place/rotate/remove agent"),
+                        ("", ""),
+                        ("AGENT", ""),
+                        ("  Click agent", "Rotate: right > down > left > up > remove"),
+                        ("  PLACE AGENT btn", "Toggle agent placement mode"),
+                        ("  1 / 2 / 3 / 4", "Set max agent count"),
+                        ("  A", "Toggle per-agent rules"),
+                        ("", ""),
+                        ("CELLS", ""),
+                        ("  Click palette", "Select cell type to place"),
+                        ("  S", "Push selected color onto sandwich stack"),
+                        ("  D", "Clear sandwich stack"),
+                        ("  Click grid", "Place sandwich (if stack has layers)"),
+                        ("", ""),
+                        ("ACTIONS", ""),
+                        ("  T", "Test level (switch to play mode)"),
+                        ("  C", "Copy level code to clipboard"),
+                        ("  V", "Paste level code from clipboard"),
+                        ("  Z", "Undo last edit"),
+                        ("  X (twice)", "Clear entire grid"),
+                        ("", ""),
+                        ("NAVIGATION", ""),
+                        ("  E / ESC", "Exit editor"),
+                        ("  H / ? btn", "Toggle this help"),
+                    ]
+                    for key, desc in help_lines:
+                        if not key and not desc:
+                            hy += 6
+                            continue
+                        if not desc:
+                            screen.blit(font_sm.render(key, True, (150, 200, 255)), (hx, hy))
+                        else:
+                            screen.blit(font_sm.render(key, True, TEXT_COLOR), (hx, hy))
+                            screen.blit(font_sm.render(desc, True, TEXT_DIM), (hx + 160, hy))
+                        hy += 16
+            else:
+                walls_left = count_walls(grid, underneath)
+                if show_gridlines:
+                    for gx in range(GRID_W + 1):
+                        pygame.draw.line(screen, (30, 30, 40), (gx * CELL, 0), (gx * CELL, GRID_PX_H))
+                    for gy in range(GRID_H + 1):
+                        pygame.draw.line(screen, (30, 30, 40), (0, gy * CELL), (GRID_PX_W, gy * CELL))
+                draw_grid(screen, grid, agents, underneath)
+                cur_lev = LEVELS[level_idx % NUM_LEVELS]
+                cur_evil = cur_lev.get("evil_rules") or cur_lev.get("fixed_rules")
+                btn_hit_rects, tab_hit_rects = draw_panel(
+                    screen, font, font_sm, verbs_list, active_team, num_teams(),
+                    step, agents, total_spawned, peak_pop, walls_left, walls_start,
+                    paused, mouse_pos, level_idx, evil_rules=cur_evil)
+
+                # star rating after level complete
+                if walls_left == 0 and step > 0:
+                    new_s = calc_stars(walls_left, len(agents), step, LEVELS[level_idx % NUM_LEVELS])
+                    star_txt = STAR_CHARS[new_s]
+                    star_labels = ["", "CLEARED", "PERFECT!", "EFFICIENT!"]
+                    star_msg = f"{star_txt} {star_labels[new_s]}"
+                    sc = STAR_COLORS[new_s]
+                    screen.blit(font.render(star_msg, True, sc), (GRID_PX_W + 12, WIN_H - 35))
+
+                if show_pause_menu:
+                    pause_btn_rects = draw_pause_overlay(screen, font, font_sm, mouse_pos)
+
         pygame.display.flip()
         clock.tick(FPS)
 

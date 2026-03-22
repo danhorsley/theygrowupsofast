@@ -1,99 +1,108 @@
 # They Grow Up So Fast
 
-A minimalist puzzle simulation game where you play the role of a reluctant creator.
+A puzzle game where you assign simple rules to colored cells, then watch your replicator agents clear the board through emergent behavior.
 
-You are given **exactly three rules** chosen from a dropdown list. 
-Your single starting replicator must use those rules to clear a simple obstacle (a wall, debris pile, spreading infection, etc.) with **minimal replications** and **no leftovers**. 
+## How to Play
 
-Ideally, your "children" solve the problem, clean up after themselves, and fade away peacefully. 
-In practice... they might overpopulate, ignore the task, die prematurely, or turn the screen into a tragic monument to bad parenting.
+```bash
+cd theygrowupsofast
+python app.py
+```
 
-**Tagline:** 
-They grow up so fast... sometimes too fast.
+**Controls:** SPACE run/pause, R reset, N/P next/prev level, E editor, ESC quit
 
-## Core Gameplay
+## Game Mechanics
 
-- **One starting agent** (the "child") placed near an obstacle.
-- You select **precisely 3 rules** from a curated pool of simple behaviors (replicate conditions, interaction with obstacle, death triggers, movement biases, etc.).
-- Hit "Simulate" → watch the emergent behavior unfold in real-time.
-- **Success metrics** (scored automatically):
- - Path cleared (obstacle fully removed or bridged).
- - Low total replications spawned (or low peak population).
- - Replicators eventually deactivate/die off (no persistent swarm = best ending).
-- **Failure is funny & informative** — overpopulation, extinction before success, infinite loops, or the replicators becoming the new obstacle.
+- **Assign a verb to each color** (Red, Yellow, Blue): Pass, Replicate, Dissolve, Turn Left, Turn Right
+- **Every contact consumes** the cell — the verb determines the side effect
+- **Perfect solution** = all cells consumed AND zero agents remaining
+- One rule set governs everything — find the assignment that works
 
-The surprise is the point: every rule combination feels like raising a new weird species. Some are elegant minimalists; most are chaotic disappointments.
+## Level Progression (49 levels)
 
-## Why This Feels Special
+1. **1D tapes** (L1-10): Learn verbs on simple color sequences
+2. **Fixed cells** (L4-6): Green auto-replicates, Purple auto-dissolves — teaching by observation
+3. **Grey road** (L7+): Grey cells auto-pass, assignable colors only at decision points
+4. **2D shapes** (L11-14): L-shapes, U-shapes with turns
+5. **Fractals** (L15-18): Self-similar patterns — solve the unit, solve the whole thing
+6. **Key + fractal** (L19-26): Solve a small timing puzzle, watch it amplify across a fractal
+7. **Sandwiches** (L19-21): Stacked cells — each agent pops the top layer, different agents get different verbs
+8. **Air gaps** (L24-26): Empty cells for timing control without consuming
+9. **Multi-agent** (L27-42): Two agents, shared or separate rule sets
+10. **Dual-fractal** (L48-49): Two agents clear a huge grid from opposite corners
 
-- Extremely constrained design space → forces clever minimalism (like golfing with cellular automata).
-- Strong emotional metaphor: pride on clean success, heartbreak on tragic failure.
-- Pure "I don't know what will happen" prototyping joy — every tweak is a surprise.
-- Short play sessions: 30–120 seconds per attempt, endless replay value through rule combos + procedural obstacles.
+## Key Concepts
 
-## Current Prototype Status
+- **Sandwiches**: Stacked colored cells (drawn as horizontal stripes). Top color consumed first.
+- **Fixed cells**: Green (replicate), Purple (dissolve), Orange (turn R), Cyan (turn L), Grey (pass) — always do their thing, no player choice.
+- **Per-agent rules**: Later levels give each agent its own verb assignment.
+- **Fractal levels**: Self-similar patterns where one solution propagates across the whole grid.
 
-- 2D grid-based simulation (console/text for ultra-fast iteration, Pygame planned for visuals).
-- Simple obstacle types: static wall, scattered blocks, spreading "cancer" cells.
-- Basic rule pool (~10–15 rules so far): directional replication, consumption, isolation death, age limits, etc.
-- Safety caps: population explosion detector, max steps.
-- Runs in seconds → perfect for rapid "what if I add this rule?" experiments.
+## Cell Types
 
-## Things Worth Exploring / Optimizing
+### Campaign (assignable — player picks verb)
+| Cell | Color | Description |
+|------|-------|-------------|
+| Red | Bright red | Player assigns verb |
+| Yellow | Gold | Player assigns verb |
+| Blue | Deep blue | Player assigns verb |
 
-Here are some high-leverage directions to make the game deeper, prettier, or more addictive while preserving the core surprise:
+### Campaign (fixed — always perform their action)
+| Cell | Color | Action |
+|------|-------|--------|
+| Green | Bright green | Always replicate |
+| Purple | Violet | Always dissolve |
+| Orange | Warm orange | Always turn right |
+| Cyan | Light blue | Always turn left |
+| Grey | Neutral grey | Always pass (road filler) |
 
-### Rule Pool Expansions (make combinations explosive)
-- Energy/resource system: replicators have finite "life force" that depletes on birth/move/consume → forces efficiency.
-- Conditional replication: "replicate only if obstacle is within 5 cells" or "if neighbor count == 2".
-- Communication/lightweight signaling: replicators leave temporary "pheromone" trails that bias movement.
-- Obstacle interaction variety: "sacrifice self to destroy large chunk", "build temporary bridge that decays", "heal/repair friendly cells".
-- Generational memory: later generations inherit slight rule tweaks or biases (soft evolution).
-- Anti-rules (negative behaviors): "avoid other replicators", "move away from high density".
+### Editor-only (community level creation)
+| Cell | Color | Action |
+|------|-------|--------|
+| Pink (Reverse) | Rose pink | Agent reverses direction 180 degrees |
+| Lime (Skip) | Yellow-green | Agent consumes cell and jumps over the next |
+| Gate (4 dirs) | Light grey + arrow | Passable in one direction only, blocks others |
+| Teleport In | Magenta (hollow circle) | Agent enters here, exits at Teleport Out |
+| Teleport Out | Magenta (filled circle) | Paired exit for Teleport In |
 
-### Obstacle Variety (force different strategies)
-- Static → dynamic (obstacle slowly regrows if not fully cleared).
-- Moving/chasing obstacle (replicators must herd or contain it).
-- Multi-objective: clear path + destroy source + prevent spread.
-- Asymmetric start: replicator far from obstacle, needs to migrate first.
+## Level Editor
 
-### Scoring & Endings (emotional payoff)
-- Tiered endings:
- - Perfect: cleared + 0 agents left + <10 total spawns → "They grew up, did their job, and left home."
- - Bittersweet: cleared but some agents linger → "They stayed... maybe they love you too much."
- - Tragic: overpopulation blocks path → "They never learned to let go."
- - Failure: extinct before clearing → "They were too fragile for this world."
-- Persistent high-score table per obstacle type: "Minimalist Parent" leaderboard.
+Press **E** to enter the editor:
+- Left-click to place cells, right-click to erase
+- Shift+click to place agents (shift+click again to cycle direction)
+- **S** to build sandwich stacks, **D** to clear stack
+- **T** to test, **C** to copy level code, **V** to paste
+- **1/2/3** to set agent count, **A** to toggle per-agent rules
 
-### Visual & Audio Polish Ideas
-- Cute replicator sprites: start as babies (small/wobbly), grow slightly with age/generation.
-- Gentle particle fade on death, bloom/glow on successful consume.
-- Sound: soft birth "pop", tension-building hum with population growth, sad piano sting on overpopulation.
-- Slow-motion replay of perfect runs for sharing.
+Level codes (e.g. `TGUSF1-...`) can be shared via clipboard — paste in Discord, itch.io comments, etc.
 
-### Technical Optimizations
-- Grid size scaling: start small (20×15), unlock larger/more complex for hard mode.
-- Undo/rewind simulation steps (great for debugging combos).
-- Rule editor: allow custom simple if-then rules (advanced mode).
-- Shareable seeds: serialize obstacle + chosen rules + outcome for challenge sharing.
+## Architecture
 
-## How to Prototype / Run
+- `app.py` — game loop, rendering, editor, serialization (~1300 lines)
+- `fractal.py` — fractal level generators
+- `algo.py` — brute-force puzzle enumerator (generates solvable tapes)
 
-(Instructions for your current Python console version)
+## Future Directions
 
-1. Copy the simulation code into a file (e.g. `they_grow_up_so_fast.py`).
-2. Edit the `chosen_rules` list at the top to experiment.
-3. Run: `python they_grow_up_so_fast.py`
-4. Watch, laugh/cry, tweak rules, repeat.
+### Crystallize verb (late-game unlock)
+Agent stops moving and becomes a permanent cell. Inverts the puzzle: instead of "clear this" it's "build this target shape." Uses the same replication/fractal mechanics — agents swarm then freeze into a pattern. Could combine both: consume raw materials on the left, crystallize into target shape on the right. One new verb, massive design space expansion. **Explore this for final 10% of levels.**
 
-Next steps: port to Pygame for real visuals, expand rule pool to 25–30, add procedural obstacle generator.
+### Editor-only experimental cells (added, not used in campaign)
+These are available in the level editor for community creators to explore. We deliberately keep them out of the campaign to preserve the clean core mechanic, but players may discover amazing puzzles with them:
+- **Reverse** — 180-degree bounce. Creates ping-pong oscillation patterns.
+- **Skip** — jump over next cell. Spacing and timing puzzles.
+- **One-way gates** — directional barriers. Asymmetric paths without consuming.
+- **Teleport pairs** — warp between two linked cells. Community catnip.
 
-## License / Attribution
+### Ideas explored and shelved
+- **Navigate obstacle** (get A to B): Weaker puzzle, no spectacle. Shelved.
+- **Tidy up** (rearrange cells): Needs push/swap verb, breaks consume-everything unity. Different game.
+- **Alternator cells** (flip on consume): Adds state, high complexity. Season 2 material.
+- **Fork verb** (split both directions): Sandwich + replicate already does this. Not needed.
+- **Timer cells** (auto-dissolve after N ticks): Complex (needs per-cell tick counter). Save for later.
 
-MIT or CC0 — do whatever you want with it. 
-Made with love, surprise, and mild existential dread.
-
-Feedback / contributions welcome — especially new rule ideas or tragic failure stories.
-
-Happy parenting. 
-They grow up so fast.
+### Platform features
+- Procedural level generator with heuristic scoring (brute-force + quality filter)
+- Community level sharing via clipboard codes (itch.io/Steam) — IMPLEMENTED
+- Level editor with full palette — IMPLEMENTED
+- Level browser/rating system (server-backed, later)

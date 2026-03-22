@@ -136,7 +136,7 @@ def build_multi_fractal(n_branches, sub_depth, seg_len=2, trunk_seg=6,
     }
 
 
-def build_key_fractal(fractal_depth, seg_len=2):
+def build_key_fractal(fractal_depth, seg_len=2, seg_color=None):
     """
     Key puzzle + fractal tail.
 
@@ -144,20 +144,22 @@ def build_key_fractal(fractal_depth, seg_len=2):
     Parent goes straight, arrives at timing sandwich first, passes through.
     Child arrives second, dissolves. Parent survives into fractal tail.
 
-    The fractal tail uses fixed G/O/P for branching — only R is assignable.
+    The fractal tail uses fixed G/O/P for branching.
     Solution: R=Pass, Y=Dissolve, B=TurnRight.
 
     The player solves the small key puzzle. The fractal is the reward.
     """
+    W = 9  # FIXED_PASS (grey road)
+    sc = seg_color if seg_color is not None else W
     C_TL = 8  # fixed turn left
 
     key = [
-        (0, 0, R), (1, 0, G), (2, 0, (B, R)),
-        (3, 0, R), (4, 0, (R, Y)),
-        (5, 0, R), (6, 0, R), (7, 0, R), (8, 0, R),
-        (2, 1, R), (2, 2, R), (2, 3, R), (2, 4, C_TL),
-        (3, 4, R), (4, 4, C_TL),
-        (4, 3, R), (4, 2, R), (4, 1, R),
+        (0, 0, sc), (1, 0, G), (2, 0, (B, sc)),
+        (3, 0, sc), (4, 0, (sc, Y)),
+        (5, 0, sc), (6, 0, sc), (7, 0, sc), (8, 0, sc),
+        (2, 1, sc), (2, 2, sc), (2, 3, sc), (2, 4, C_TL),
+        (3, 4, sc), (4, 4, C_TL),
+        (4, 3, sc), (4, 2, sc), (4, 1, sc),
     ]
 
     tail_cells = {}
@@ -167,7 +169,7 @@ def build_key_fractal(fractal_depth, seg_len=2):
 
     def branch(x, y, dx, dy, d):
         for i in range(seg_len):
-            place(x + dx * i, y + dy * i, R)
+            place(x + dx * i, y + dy * i, sc)
         ex, ey = x + dx * seg_len, y + dy * seg_len
         if d == 0:
             place(ex, ey, P)
@@ -190,33 +192,35 @@ def build_key_fractal(fractal_depth, seg_len=2):
     }
 
 
-def build_gap_key_fractal(fractal_depth, seg_len=2):
+def build_gap_key_fractal(fractal_depth, seg_len=2, seg_color=None):
     """
     Key puzzle with air gaps + fractal tail.
 
-    Same timing puzzle as build_key_fractal but uses air gaps instead of R
+    Same timing puzzle as build_key_fractal but uses air gaps instead of
     padding. Fewer consumable cells, cleaner visuals, same timing.
 
     Child loops: down → right → up (with gaps), rejoins at timing sandwich.
     Parent goes straight through gaps, arrives first.
 
-    Solution: R=Pass, Y=Dissolve, B=TurnRight.
+    Solution: Y=Dissolve, B=TurnRight.
     """
+    W = 9  # FIXED_PASS (grey road)
+    sc = seg_color if seg_color is not None else W
     C_TL = 8
 
     key = [
-        (0, 0, R), (1, 0, G), (2, 0, (B, R)),
+        (0, 0, sc), (1, 0, G), (2, 0, (B, sc)),
         # parent path: 3 gaps → timing sandwich at (6,0)
-        (6, 0, (R, Y)),
+        (6, 0, (sc, Y)),
         # child detour with gaps
-        (2, 1, R), (2, 3, R), (2, 4, C_TL),      # down, gap, turn
-        (3, 4, R), (6, 4, C_TL),                   # right with gaps, turn
-        (6, 3, R), (6, 1, R),                       # up with gap
+        (2, 1, sc), (2, 3, sc), (2, 4, C_TL),      # down, gap, turn
+        (3, 4, sc), (6, 4, C_TL),                   # right with gaps, turn
+        (6, 3, sc), (6, 1, sc),                       # up with gap
     ]
 
     # fractal offset: depth 2 → 10, depth 3 → 12
     frac_offset = 10 if fractal_depth <= 2 else 12
-    gap_cells = [(i, 0, R) for i in range(8, frac_offset)]
+    gap_cells = [(i, 0, sc) for i in range(8, frac_offset)]
 
     tail_cells = {}
 
@@ -225,7 +229,7 @@ def build_gap_key_fractal(fractal_depth, seg_len=2):
 
     def branch(x, y, dx, dy, d):
         for i in range(seg_len):
-            place(x + dx * i, y + dy * i, R)
+            place(x + dx * i, y + dy * i, sc)
         ex, ey = x + dx * seg_len, y + dy * seg_len
         if d == 0:
             place(ex, ey, P)
