@@ -1,0 +1,291 @@
+{
+  "0": {
+    "tag": "KEEP"
+  },
+  "1": {
+    "tag": "KEEP"
+  },
+  "2": {
+    "tag": "KEEP"
+  },
+  "3": {
+    "tag": "KEEP"
+  },
+  "5": {
+    "tag": "KEEP"
+  },
+  "4": {
+    "tag": "KEEP"
+  },
+  "6": {
+    "tag": "KEEP"
+  },
+  "7": {
+    "notes": "this level is fine to introduce grey square but needs to be moved somewhere else as levels are too repetitive now",
+    "tag": "REWORK"
+  },
+  "8": {
+    "tag": "REWORK",
+    "notes": "too similar to previous level - perhaps this version is better for grey square intro"
+  },
+  "9": {
+    "notes": "again similar to last two.  should only keep one of these",
+    "tag": "REWORK"
+  },
+  "10": {
+    "notes": "this should be moved earlier to break up straight line levels",
+    "tag": "REWORK"
+  },
+  "11": {
+    "tag": "REWORK",
+    "notes": "again should be moved earlier"
+  },
+  "12": {
+    "tag": "KEEP"
+  },
+  "13": {
+    "tag": "CUT",
+    "notes": "too similar to double right turn level - perhaps this is a better version"
+  },
+  "14": {
+    "notes": "this is a perfect early \"reward\" type level",
+    "tag": "KEEP"
+  },
+  "15": {
+    "tag": "KEEP"
+  },
+  "16": {
+    "tag": "KEEP"
+  },
+  "17": {
+    "tag": "REWORK",
+    "notes": "i like this level but too similar to previous solutions - one turn right and one replicate"
+  },
+  "18": {
+    "tag": "KEEP"
+  },
+  "19": {
+    "tag": "REWORK",
+    "notes": "too similar to previous level"
+  },
+  "20": {
+    "tag": "KEEP"
+  },
+  "21": {
+    "tag": "REWORK",
+    "notes": "i like this level but should have some red squares as a pass or even better a replicate"
+  },
+  "22": {
+    "tag": "REWORK",
+    "notes": "again needs some red squares"
+  },
+  "23": {
+    "tag": "KEEP",
+    "notes": "is fine not to introduce red squares as introduces a concept"
+  },
+  "24": {
+    "tag": "REWORK",
+    "notes": "red squares needed"
+  },
+  "25": {
+    "notes": "red squares needed",
+    "tag": "REWORK"
+  },
+  "26": {
+    "tag": "CUT",
+    "notes": "too basic for later levels and too similar to early levels"
+  },
+  "27": {
+    "tag": "CUT"
+  },
+  "28": {
+    "tag": "REWORK",
+    "notes": "keep but move earlier as concept introduction"
+  },
+  "29": {
+    "tag": "CUT"
+  },
+  "30": {
+    "tag": "CUT"
+  },
+  "31": {
+    "tag": "REWORK",
+    "notes": "move earlier if not too similar to early levels or cut - this could be level 2"
+  },
+  "32": {
+    "tag": "CUT"
+  },
+  "33": {
+    "tag": "KEEP"
+  },
+  "34": {
+    "tag": "CUT",
+    "notes": "too similar"
+  },
+  "35": {
+    "tag": "CUT",
+    "notes": "too similar"
+  },
+  "36": {
+    "tag": "CUT",
+    "notes": "too similar"
+  },
+  "37": {
+    "tag": "CUT",
+    "notes": "too similar"
+  },
+  "38": {
+    "tag": "CUT",
+    "notes": "too similar"
+  },
+  "39": {
+    "tag": "CUT",
+    "notes": "too similar"
+  },
+  "40": {
+    "tag": "CUT",
+    "notes": "too similar"
+  },
+  "41": {
+    "tag": "CUT",
+    "notes": "too similar"
+  },
+  "42": {
+    "tag": "CUT",
+    "notes": "too similar"
+  },
+  "43": {
+    "tag": "CUT",
+    "notes": "too similar"
+  },
+  "44": {
+    "tag": "CUT",
+    "notes": "too similar"
+  },
+  "45": {
+    "tag": "CUT",
+    "notes": "too similar"
+  },
+  "46": {
+    "tag": "CUT",
+    "notes": "too similar"
+  },
+  "47": {
+    "tag": "KEEP",
+    "notes": "keep but move earlier"
+  },
+  "48": {
+    "tag": "KEEP"
+  },
+  "49": {
+    "tag": "CUT",
+    "notes": "too similar to last two - only difference is double turn which is not different enough"
+  },
+  "50": {
+    "tag": "CUT"
+  },
+  "51": {
+    "tag": "KEEP"
+  },
+  "52": {
+    "tag": "KEEP"
+  },
+  "53": {
+    "tag": "REWORK",
+    "notes": "i like this but let's expand it into something slightly bigger"
+  },
+  "54": {
+    "tag": "REWORK",
+    "notes": "this doesnt seem solvable - but i like it overall"
+  },
+  "55": {
+    "tag": "REWORK",
+    "notes": "again i really like this but seems you can only solve it with one agent left over"
+  },
+  "56": {
+    "tag": "KEEP"
+  },
+  "58": {
+    "tag": "CUT",
+    "notes": "too similar to previous"
+  },
+  "59": {
+    "tag": "CUT",
+    "notes": "too similar"
+  },
+  "60": {
+    "tag": "CUT",
+    "notes": "too similar"
+  },
+  "61": {
+    "tag": "CUT",
+    "notes": "too similar"
+  },
+  "62": {
+    "tag": "CUT",
+    "notes": "too easy"
+  },
+  "63": {
+    "tag": "CUT",
+    "notes": "too easy"
+  },
+  "64": {
+    "tag": "CUT",
+    "notes": "too easy"
+  },
+  "65": {
+    "tag": "CUT",
+    "notes": "solvable but requires one square dissolving two pieces which i dont like - one square - one action"
+  },
+  "66": {
+    "tag": "CUT",
+    "notes": "too easy"
+  },
+  "67": {
+    "tag": "CUT",
+    "notes": "too easy"
+  },
+  "68": {
+    "tag": "CUT",
+    "notes": "too easy as bad agent auto dies"
+  },
+  "69": {
+    "notes": "very easy - only one option needs to be selected"
+  },
+  "70": {
+    "tag": "CUT",
+    "notes": "both bad agents auto die"
+  },
+  "71": {
+    "tag": "CUT",
+    "notes": "no agents on map"
+  },
+  "72": {
+    "tag": "CUT",
+    "notes": "no agents on map"
+  },
+  "73": {
+    "tag": "CUT",
+    "notes": "no agents on map"
+  },
+  "74": {
+    "tag": "CUT",
+    "notes": "no agents on map"
+  },
+  "75": {
+    "tag": "REWORK",
+    "notes": "only one option required to solve - could be made into a good puzzle though"
+  },
+  "76": {
+    "tag": "KEEP",
+    "notes": "keeper but is very easy"
+  },
+  "77": {
+    "tag": "CUT",
+    "notes": "too simmilar to last"
+  },
+  "78": {
+    "tag": "REWORK",
+    "notes": "keep but rework as only one option needs to be selected"
+  }
+}

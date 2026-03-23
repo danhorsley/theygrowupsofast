@@ -48,8 +48,8 @@ FIXED_TELEPORT_B = 17  # magenta — teleport exit
 WALL_PINK  = 18
 WALL_TEAL  = 19
 
-ASSIGNABLE_TYPES = (WALL_RED, WALL_YELLOW, WALL_BLUE)
-EDITOR_ASSIGNABLE = (WALL_PINK, WALL_TEAL)
+ASSIGNABLE_TYPES = (WALL_RED, WALL_YELLOW, WALL_BLUE, WALL_PINK)
+EDITOR_ASSIGNABLE = (WALL_TEAL,)  # teal remains editor-only
 ALL_ASSIGNABLE = ASSIGNABLE_TYPES + EDITOR_ASSIGNABLE
 FIXED_TYPES = (FIXED_REPLICATE, FIXED_DISSOLVE, FIXED_TURN_RIGHT, FIXED_TURN_LEFT, FIXED_PASS)
 EDITOR_EXTRA_TYPES = (FIXED_REVERSE, FIXED_SKIP,
@@ -162,9 +162,9 @@ WCOLOR = {
     FIXED_ONE_WAY_D: (180, 180, 190),
     FIXED_ONE_WAY_L: (180, 180, 190),
     FIXED_ONE_WAY_U: (180, 180, 190),
-    FIXED_TELEPORT_A:(200, 80, 220),
-    FIXED_TELEPORT_B:(200, 80, 220),
-    WALL_PINK:       (220, 120, 160),
+    FIXED_TELEPORT_A:(220, 60, 180),   # hot pink — teleport IN
+    FIXED_TELEPORT_B:(60, 200, 220),   # electric cyan — teleport OUT
+    WALL_PINK:       (230, 100, 180),   # vibrant pink — 4th assignable
     WALL_TEAL:       (60, 180, 170),
 }
 
@@ -218,6 +218,18 @@ def get_verb(color, verbs):
     if color in FIXED_VERB:
         return FIXED_VERB[color]
     return verbs.get(color, VERB_PASS)
+
+def get_disabled_verbs(level):
+    """Return dict of {color: [disabled verb ints]} from level definition."""
+    return level.get("disabled_verbs", {})
+
+def cycle_verb(current, disabled_list):
+    """Cycle to next allowed verb, skipping disabled ones."""
+    for _ in range(VERB_COUNT):
+        current = (current + 1) % VERB_COUNT
+        if current not in disabled_list:
+            return current
+    return current  # fallback
 
 def count_walls(grid, underneath):
     """Count total consumable layers (grid + hidden under agents)."""
@@ -844,7 +856,205 @@ LEVELS += [
     ),
 ]
 
-NUM_LEVELS = len(LEVELS)
+# ── Phase 18: binary tree levels ──
+
+LEVELS += [
+    # 77: Tree intro — symmetric depth 1 (easy, Y=Dissolve, rest don't matter)
+    {"cells": [(0,0,W),(0,1,W),(0,2,W),(0,3,W),(0,4,G),(0,5,(C,O)),
+               (1,5,W),(2,5,W),(3,5,W),(4,5,Y),
+               (-1,5,W),(-2,5,W),(-3,5,W),(-4,5,Y)],
+     "start": (0,-1), "dir": (0,1)},
+
+    # 78: Asymmetric tree — right arm has a turn (R=TR), left is straight (B=Pass). 1 solution.
+    {"cells": [(0,0,W),(0,1,W),(0,2,G),(0,3,(C,O)),
+               (1,3,W),(2,3,W),(3,3,R),(3,4,W),(3,5,Y),
+               (-1,3,W),(-2,3,B),(-3,3,W),(-4,3,Y)],
+     "start": (0,-1), "dir": (0,1)},
+
+    # 79: Expire tree — one child dissolves immediately, parent navigates L-path. 1 solution.
+    {"cells": [(0,0,W),(0,1,W),(0,2,G),(0,3,(C,O)),
+               (1,3,Y),
+               (-1,3,W),(-2,3,R),(-2,2,W),(-2,1,B),(-2,0,Y)],
+     "start": (0,-1), "dir": (0,1)},
+
+    # 80: Symmetric depth 2 — 4 branches, the spectacle level (pk=4)
+    {"cells": [(0,0,W),(0,1,W),(0,2,W),(0,3,G),(0,4,(C,O)),
+               (1,4,W),(2,4,W),(3,4,G),(4,4,(C,O)),
+               (4,3,W),(4,2,W),(4,1,Y),(4,5,W),(4,6,W),(4,7,Y),
+               (-1,4,W),(-2,4,W),(-3,4,G),(-4,4,(C,O)),
+               (-4,5,W),(-4,6,W),(-4,7,Y),(-4,3,W),(-4,2,W),(-4,1,Y)],
+     "start": (0,-1), "dir": (0,1)},
+]
+
+# ── Phase 18: devilish levels — unique solutions, non-obvious answers ──
+
+def tape_level_d(colors, disabled=None):
+    """1D tape with optional disabled verbs."""
+    level = {
+        "cells": [(i, 0, c) for i, c in enumerate(colors)],
+        "start": (-1, 0),
+        "dir": (1, 0),
+    }
+    if disabled:
+        level["disabled_verbs"] = disabled
+    return level
+
+LEVELS += [
+    # Devilish 1: "The Trap" — looks like pass-through but needs replicate + turn
+    # R=Replicate, Y=Dissolve, B=TurnRight (1 solution)
+    {"cells": [(0,0,W),(1,0,R),(2,0,(B,W)),(3,0,W),(4,0,Y),
+               (2,1,W),(2,2,Y)],
+     "start": (-1,0), "dir": (1,0)},
+
+    # Devilish 2: "T-Junction" — same mechanic, different shape
+    {"cells": [(0,0,R),(1,0,(B,W)),(2,0,W),(3,0,Y),
+               (1,1,W),(1,2,Y)],
+     "start": (-1,0), "dir": (1,0)},
+
+    # Devilish 3: "Spiral" — clockwise spiral, R=Pass B=TurnRight Y=Dissolve
+    {"cells": [(0,0,R),(1,0,R),(2,0,R),(3,0,B),
+               (3,1,R),(3,2,R),(3,3,B),
+               (2,3,R),(1,3,R),(0,3,B),
+               (0,2,R),(0,1,Y)],
+     "start": (-1,0), "dir": (1,0)},
+
+    # Devilish 4: "Counter-Replicate" — must replicate AND dissolve extras
+    # R=Replicate, Y=Dissolve, B=Dissolve (1 solution, pk=3)
+    tape_level_d([R, R, Y, R, R, Y, B]),
+]
+
+# ── Phase 19: No-Pass levels — Pass verb disabled, every color does something ──
+
+LEVELS += [
+    # No-Pass intro — short tape, R=Replicate Y=Dissolve B=Dissolve
+    tape_level_d([R, R, Y, Y, B],
+                 disabled={R: [VERB_PASS], Y: [VERB_PASS], B: [VERB_PASS]}),
+
+    # No-Pass with double replicate — R=Rep Y=Rep B=Dissolve (pk=4)
+    tape_level_d([R, Y, B, B, B, B],
+                 disabled={R: [VERB_PASS], Y: [VERB_PASS], B: [VERB_PASS]}),
+
+    # No-Pass longer — R=Rep Y=Dissolve B=Dissolve (pk=4)
+    tape_level_d([R, R, R, Y, Y, Y, B],
+                 disabled={R: [VERB_PASS], Y: [VERB_PASS], B: [VERB_PASS]}),
+
+    # No-Pass spectacle — big replicate chain (pk=4)
+    tape_level_d([R, R, R, Y, B, Y, B],
+                 disabled={R: [VERB_PASS], Y: [VERB_PASS], B: [VERB_PASS]}),
+
+    # Mixed restriction — R,Y no pass, B free. R=Rep Y=Dissolve B=Pass
+    tape_level_d([R, Y, B, B, Y],
+                 disabled={R: [VERB_PASS], Y: [VERB_PASS]}),
+
+    # Mixed restriction longer
+    tape_level_d([R, R, Y, Y, B, Y],
+                 disabled={R: [VERB_PASS], Y: [VERB_PASS]}),
+]
+
+# ── campaign order: curated selection from all levels ──
+# The full LEVELS list is the "songbook." CAMPAIGN is the album.
+# Level select shows campaign order. Editor still accesses all levels.
+
+# Phase 20: 4-color levels (Pink as 4th assignable)
+K = WALL_PINK
+LEVELS += [
+    # 4-color intro: R=Replicate Y=Dissolve B=Pass K=Dissolve (1 solution)
+    {"cells": [(i,0,c) for i,c in enumerate([R,Y,B,R,K,Y])],
+     "start": (-1,0), "dir": (1,0)},
+
+    # 4-color with double rep: R=Replicate Y=Dissolve B=Replicate K=Pass (1 sol, pk=3)
+    {"cells": [(i,0,c) for i,c in enumerate([R,Y,B,B,K,B])],
+     "start": (-1,0), "dir": (1,0)},
+
+    # 4-color longer: R=Replicate Y=Replicate B=Dissolve K=Pass (1 sol, pk=3)
+    {"cells": [(i,0,c) for i,c in enumerate([R,Y,B,K,R,B])],
+     "start": (-1,0), "dir": (1,0)},
+
+    # 4-color hard: R=Pass Y=Replicate B=Dissolve K=Pass (1 sol)
+    {"cells": [(i,0,c) for i,c in enumerate([R,Y,B,K,Y,B])],
+     "start": (-1,0), "dir": (1,0)},
+]
+
+# Phase 21: Teleport levels
+TA, TB = FIXED_TELEPORT_A, FIXED_TELEPORT_B
+LEVELS += [
+    # Teleport intro: walk through R, teleport, walk through B, dissolve at Y
+    {"cells": [(0,0,R),(1,0,R),(2,0,TA),
+               (6,0,TB),(7,0,B),(8,0,B),(9,0,Y)],
+     "start": (-1,0), "dir": (1,0)},
+
+    # Teleport + branch: replicate, child teleports, parent continues locally
+    {"cells": [(0,0,W),(1,0,G),(2,0,(TA,W)),
+               (3,0,W),(4,0,Y),
+               (8,2,TB),(9,2,W),(10,2,Y)],
+     "start": (-1,0), "dir": (1,0)},
+
+    # Teleport + 4 colors: R path → teleport → K path → dissolve
+    {"cells": [(0,0,R),(1,0,B),(2,0,TA),
+               (6,0,TB),(7,0,K),(8,0,B),(9,0,Y)],
+     "start": (-1,0), "dir": (1,0)},
+]
+
+# ── Phase 22: Mandala — showcase level, 4 agents from center ──
+
+LEVELS += [
+    # 4-ring cross mandala: RBRY pattern. Unique solution. 4 agents march outward.
+    {"cells": [(1,0,R),(-1,0,R),(0,1,R),(0,-1,R),
+               (2,0,B),(-2,0,B),(0,2,B),(0,-2,B),
+               (3,0,R),(-3,0,R),(0,3,R),(0,-3,R),
+               (4,0,Y),(-4,0,Y),(0,4,Y),(0,-4,Y)],
+     "agents": [{"x":0,"y":0,"dx":1,"dy":0,"team":0},
+                {"x":0,"y":0,"dx":-1,"dy":0,"team":1},
+                {"x":0,"y":0,"dx":0,"dy":1,"team":2},
+                {"x":0,"y":0,"dx":0,"dy":-1,"team":3}]},
+
+    # 5-ring cross mandala: RBRBY. 2 solutions incl replicate variant (pk=8!)
+    {"cells": [(1,0,R),(-1,0,R),(0,1,R),(0,-1,R),
+               (2,0,B),(-2,0,B),(0,2,B),(0,-2,B),
+               (3,0,R),(-3,0,R),(0,3,R),(0,-3,R),
+               (4,0,B),(-4,0,B),(0,4,B),(0,-4,B),
+               (5,0,Y),(-5,0,Y),(0,5,Y),(0,-5,Y)],
+     "agents": [{"x":0,"y":0,"dx":1,"dy":0,"team":0},
+                {"x":0,"y":0,"dx":-1,"dy":0,"team":1},
+                {"x":0,"y":0,"dx":0,"dy":1,"team":2},
+                {"x":0,"y":0,"dx":0,"dy":-1,"team":3}]},
+]
+
+# ── campaign order: curated selection from all levels ──
+# Indices into the full LEVELS list above. The "album" from the "songbook."
+
+# Count levels just added
+_N = len(LEVELS)
+_MAND_START = _N - 2    # 2 mandala levels
+_TP_START = _MAND_START - 3  # 3 teleport levels
+_4C_START = _TP_START - 4    # 4 four-color levels
+
+CAMPAIGN_ORDER = [
+    # Act 1: Tutorial (7)
+    0, 1, 2, 3, 4, 5, 6,
+    # Act 2: 2D + Grey (5)
+    8, 10, 11, 12, 14,
+    # Act 3: Advanced (6)
+    15, 16, 18, 20, 23, 33,
+    # Act 4: Multi-agent (6)
+    47, 48, 54, 55, 56, 76,
+    # Act 5: Devilish (4)
+    79, 80, 81, 82,
+    # Act 6: No-Pass (6)
+    83, 84, 85, 86, 87, 88,
+    # Act 7: 4-color (4)
+    _4C_START, _4C_START+1, _4C_START+2, _4C_START+3,
+    # Act 8: Teleport (3)
+    _TP_START, _TP_START+1, _TP_START+2,
+    # Act 9: Mandala showcase (2)
+    _MAND_START, _MAND_START+1,
+]
+
+CAMPAIGN = [LEVELS[i] for i in CAMPAIGN_ORDER if i < len(LEVELS)]
+NUM_LEVELS = len(CAMPAIGN)
+
+_ALL_LEVELS = LEVELS  # keep full list for editor
+LEVELS = CAMPAIGN
 
 
 # ── level serialization ──
@@ -913,6 +1123,78 @@ def deserialize_level(code):
     if data.get("p"):
         level["per_agent_rules"] = True
     return level
+
+
+# ── pack serialization (collections of levels) ──
+
+def serialize_pack(name, levels):
+    """Encode a named collection of levels to a shareable string."""
+    if not levels:
+        return None
+    # serialize each level to its compact dict form
+    pack_levels = []
+    for level in levels:
+        cells = level.get("cells", [])
+        if not cells:
+            continue
+        min_x = min(x for x, y, c in cells)
+        min_y = min(y for x, y, c in cells)
+        def encode_cell(c):
+            if isinstance(c, tuple):
+                return list(c)
+            return c
+        ld = {"c": [[x - min_x, y - min_y, encode_cell(c)] for x, y, c in cells]}
+        if "agents" in level:
+            ld["a"] = [[a["x"] - min_x, a["y"] - min_y, a["dx"], a["dy"], a.get("team", 0)]
+                        for a in level["agents"]]
+        else:
+            ld["a"] = [[level["start"][0] - min_x, level["start"][1] - min_y,
+                         level["dir"][0], level["dir"][1], 0]]
+        if level.get("per_agent_rules"):
+            ld["p"] = 1
+        if level.get("mode"):
+            ld["m"] = level["mode"]
+        pack_levels.append(ld)
+
+    data = {"n": name, "l": pack_levels}
+    payload = json.dumps(data, separators=(',', ':'))
+    compressed = zlib.compress(payload.encode(), 9)
+    code = "TGUSFP1-" + base64.urlsafe_b64encode(compressed).decode().rstrip('=')
+    return code
+
+
+def deserialize_pack(code):
+    """Decode a pack string back to a name + list of level dicts."""
+    if not code.startswith("TGUSFP1-"):
+        return None, None
+    b64 = code[8:]
+    b64 += '=' * (-len(b64) % 4)
+    try:
+        compressed = base64.urlsafe_b64decode(b64)
+        payload = zlib.decompress(compressed).decode()
+        data = json.loads(payload)
+    except Exception:
+        return None, None
+
+    def decode_cell(c):
+        if isinstance(c, list):
+            return tuple(c)
+        return c
+
+    name = data.get("n", "Unnamed Pack")
+    levels = []
+    for ld in data.get("l", []):
+        cells = [(x, y, decode_cell(c)) for x, y, c in ld["c"]]
+        agents = [{"x": a[0], "y": a[1], "dx": a[2], "dy": a[3], "team": a[4]}
+                  for a in ld["a"]]
+        level = {"cells": cells, "agents": agents}
+        if ld.get("p"):
+            level["per_agent_rules"] = True
+        if ld.get("m"):
+            level["mode"] = ld["m"]
+        levels.append(level)
+
+    return name, levels
 
 
 def grid_to_level(grid, agents, underneath):
@@ -1497,11 +1779,15 @@ def draw_cell(screen, rx, ry, cell):
             base1 = (cx - d[0] * 3 + d[1] * 3, cy - d[1] * 3 + d[0] * 3)
             base2 = (cx - d[0] * 3 - d[1] * 3, cy - d[1] * 3 - d[0] * 3)
             pygame.draw.polygon(screen, (40, 40, 50), [tip, base1, base2])
-        # teleport: draw letter marker
+        # teleport: distinct markers — A=hollow ring, B=filled dot + ring
         elif cell == FIXED_TELEPORT_A:
-            pygame.draw.circle(screen, (255, 255, 255), (rx + CELL//2, ry + CELL//2), 4, 1)
+            cx, cy = rx + CELL//2, ry + CELL//2
+            pygame.draw.circle(screen, (255, 255, 255), (cx, cy), 5, 2)
+            pygame.draw.circle(screen, (255, 255, 255), (cx, cy), 2, 1)
         elif cell == FIXED_TELEPORT_B:
-            pygame.draw.circle(screen, (255, 255, 255), (rx + CELL//2, ry + CELL//2), 4)
+            cx, cy = rx + CELL//2, ry + CELL//2
+            pygame.draw.circle(screen, (255, 255, 255), (cx, cy), 5, 2)
+            pygame.draw.circle(screen, (255, 255, 255), (cx, cy), 2)
         # reverse: draw double-headed arrow
         elif cell == FIXED_REVERSE:
             cx, cy = rx + CELL // 2, ry + CELL // 2
@@ -1614,7 +1900,7 @@ def draw_shape_preview(screen, font_sm, level, px, y):
 
 def draw_panel(screen, font, font_sm, verbs_list, active_team, n_teams, step, agents,
                total_spawned, peak_pop, walls_left, walls_start, paused, mouse_pos, level_idx,
-               evil_rules=None):
+               evil_rules=None, is_testing=False):
     px = GRID_PX_W
     pygame.draw.rect(screen, PANEL_BG, (px, 0, PANEL_W, WIN_H))
     level = LEVELS[level_idx % NUM_LEVELS]
@@ -1688,7 +1974,10 @@ def draw_panel(screen, font, font_sm, verbs_list, active_team, n_teams, step, ag
     y += 38
 
     screen.blit(font_sm.render("SPACE run/pause   R reset", True, TEXT_DIM), (px + 12, y))
-    screen.blit(font_sm.render("N next   P prev   ESC quit", True, TEXT_DIM), (px + 12, y + 15))
+    if is_testing:
+        screen.blit(font_sm.render("E=back to editor  ESC=editor", True, (255, 200, 80)), (px + 12, y + 15))
+    else:
+        screen.blit(font_sm.render("N next   P prev   ESC quit", True, TEXT_DIM), (px + 12, y + 15))
     y += 36
 
     level = LEVELS[level_idx % NUM_LEVELS]
@@ -1736,7 +2025,7 @@ def draw_panel(screen, font, font_sm, verbs_list, active_team, n_teams, step, ag
     verbs = verbs_list[active_team] if verbs_list else default_verbs()
     btn_rects = []
 
-    # show buttons for all assignable colors present in this level
+    # show buttons only for assignable colors actually used in this level
     level = LEVELS[level_idx % len(LEVELS)]
     level_colors = set()
     for _, _, c in level["cells"]:
@@ -1744,7 +2033,7 @@ def draw_panel(screen, font, font_sm, verbs_list, active_team, n_teams, step, ag
             level_colors.update(c)
         else:
             level_colors.add(c)
-    active_assignable = list(ASSIGNABLE_TYPES)
+    active_assignable = [c for c in ASSIGNABLE_TYPES if c in level_colors]
     for ec in EDITOR_ASSIGNABLE:
         if ec in level_colors:
             active_assignable.append(ec)
@@ -1766,6 +2055,13 @@ def draw_panel(screen, font, font_sm, verbs_list, active_team, n_teams, step, ag
         screen.blit(font_sm.render(arrow_text, True, TEXT_COLOR), (bx + 36, by + 8))
         verb_x = bx + 36 + font_sm.size(arrow_text)[0]
         screen.blit(font_sm.render(vname, True, VERB_COLOR[verb]), (verb_x, by + 8))
+
+        # show disabled verbs indicator
+        disabled = get_disabled_verbs(level).get(wall_type, [])
+        if disabled:
+            disabled_names = [VERB_NAMES[v] for v in disabled]
+            dim_text = "\u2718 " + " ".join(disabled_names)
+            screen.blit(font_sm.render(dim_text, True, (80, 50, 50)), (bx + 36, by + 21))
 
         btn_rects.append((bx, by, bw, bh, wall_type))
         y += bh + 5
@@ -1799,8 +2095,11 @@ def draw_panel(screen, font, font_sm, verbs_list, active_team, n_teams, step, ag
 
 SAVE_PATH = os.path.expanduser("~/.tgusf_save.json")
 
-def save_progress(stars, sim_speed, show_gridlines):
+def save_progress(stars, sim_speed, show_gridlines, packs=None):
     data = {"stars": stars, "speed": sim_speed, "gridlines": show_gridlines}
+    if packs:
+        # store packs as serialized codes to keep save file clean
+        data["packs"] = [{"name": p["name"], "code": p["code"]} for p in packs]
     try:
         with open(SAVE_PATH, "w") as f:
             json.dump(data, f)
@@ -1871,61 +2170,150 @@ def draw_title_screen(screen, font, font_sm, font_lg, mouse_pos, tick):
     return btn_rects
 
 
-def draw_level_select(screen, font, font_sm, stars, mouse_pos, scroll_y):
+def draw_level_select(screen, font, font_sm, stars, mouse_pos, scroll_y,
+                      active_tab="campaign", packs=None, pack_idx=0):
+    """Draw level select with Campaign / Community Packs tabs."""
     screen.fill(BG)
     cx = WIN_W // 2
+    if packs is None:
+        packs = []
 
-    title = font.render("SELECT LEVEL", True, TEXT_COLOR)
-    screen.blit(title, (cx - title.get_width() // 2, 15))
-    hint = font_sm.render("Click to play — ESC back to menu", True, TEXT_DIM)
-    screen.blit(hint, (cx - hint.get_width() // 2, 38))
-
-    cols = 8
-    tile_w, tile_h = 80, 65
-    gap = 10
-    grid_w = cols * (tile_w + gap) - gap
-    ox = (WIN_W - grid_w) // 2
-    oy = 65 - scroll_y
+    # tabs: Campaign | Community Packs
+    tab_rects = []
+    tabs = [("Campaign", "campaign"), ("Community Packs", "packs")]
+    tab_w = 160
+    tab_y = 10
+    for i, (label, key) in enumerate(tabs):
+        tx = cx - tab_w + i * (tab_w + 4)
+        active = key == active_tab
+        bg = (60, 60, 80) if active else (35, 35, 48)
+        fg = TEXT_COLOR if active else TEXT_DIM
+        pygame.draw.rect(screen, bg, (tx, tab_y, tab_w, 24), border_radius=4)
+        if active:
+            pygame.draw.rect(screen, (100, 160, 220), (tx, tab_y, tab_w, 24), 1, border_radius=4)
+        txt = font_sm.render(label, True, fg)
+        screen.blit(txt, (tx + tab_w // 2 - txt.get_width() // 2, tab_y + 4))
+        tab_rects.append((tx, tab_y, tab_w, 24, key))
 
     btn_rects = []
-    for i in range(NUM_LEVELS):
-        col = i % cols
-        row = i // cols
-        tx = ox + col * (tile_w + gap)
-        ty = oy + row * (tile_h + gap)
+    action_rects = []
 
-        if ty + tile_h < 55 or ty > WIN_H:
-            continue  # off screen
+    if active_tab == "campaign":
+        hint = font_sm.render("Click to play — ESC back to menu", True, TEXT_DIM)
+        screen.blit(hint, (cx - hint.get_width() // 2, 42))
 
-        star = stars[i] if i < len(stars) else 0
-        hovered = tx <= mouse_pos[0] < tx + tile_w and ty <= mouse_pos[1] < ty + tile_h
+        cols = 8
+        tile_w, tile_h = 80, 65
+        gap = 10
+        grid_w = cols * (tile_w + gap) - gap
+        ox = (WIN_W - grid_w) // 2
+        oy = 70 - scroll_y
 
-        # tile background
-        if hovered:
-            bg = (55, 55, 75)
-        elif star >= 3:
-            bg = (40, 45, 30)
-        elif star >= 1:
-            bg = (35, 40, 35)
+        for i in range(NUM_LEVELS):
+            col = i % cols
+            row = i // cols
+            tx = ox + col * (tile_w + gap)
+            ty = oy + row * (tile_h + gap)
+
+            if ty + tile_h < 60 or ty > WIN_H:
+                continue
+
+            star = stars[i] if i < len(stars) else 0
+            hovered = tx <= mouse_pos[0] < tx + tile_w and ty <= mouse_pos[1] < ty + tile_h
+
+            if hovered:
+                bg = (55, 55, 75)
+            elif star >= 3:
+                bg = (40, 45, 30)
+            elif star >= 1:
+                bg = (35, 40, 35)
+            else:
+                bg = (30, 30, 40)
+
+            pygame.draw.rect(screen, bg, (tx, ty, tile_w, tile_h), border_radius=4)
+            pygame.draw.rect(screen, (70, 70, 85), (tx, ty, tile_w, tile_h), 1, border_radius=4)
+
+            num = font.render(str(i + 1), True, TEXT_COLOR)
+            screen.blit(num, (tx + tile_w // 2 - num.get_width() // 2, ty + 6))
+
+            star_text = STAR_CHARS[min(star, 3)]
+            star_color = STAR_COLORS[min(star, 3)]
+            st = font_sm.render(star_text, True, star_color)
+            screen.blit(st, (tx + tile_w // 2 - st.get_width() // 2, ty + 38))
+
+            btn_rects.append((tx, ty, tile_w, tile_h, ("level", i)))
+
+    elif active_tab == "packs":
+        # load pack button
+        by = 46
+        for label, action in [("Load Pack (V)", "load_pack"), ("Share Pack (C)", "share_pack")]:
+            bw, bh = 150, 26
+            bx = cx - bw - 5 if action == "load_pack" else cx + 5
+            hovered = bx <= mouse_pos[0] < bx + bw and by <= mouse_pos[1] < by + bh
+            bg = (55, 55, 70) if hovered else (40, 40, 52)
+            pygame.draw.rect(screen, bg, (bx, by, bw, bh), border_radius=4)
+            txt = font_sm.render(label, True, TEXT_COLOR)
+            screen.blit(txt, (bx + bw // 2 - txt.get_width() // 2, by + 5))
+            action_rects.append((bx, by, bw, bh, action))
+
+        oy = 82
+
+        if not packs:
+            msg = font_sm.render("No packs loaded yet. Press V to paste a pack code.", True, TEXT_DIM)
+            screen.blit(msg, (cx - msg.get_width() // 2, oy + 40))
         else:
-            bg = (30, 30, 40)
+            for pi, pack in enumerate(packs):
+                # pack header
+                py = oy + pi * 200 - scroll_y
+                if py > WIN_H or py + 200 < 80:
+                    continue
 
-        pygame.draw.rect(screen, bg, (tx, ty, tile_w, tile_h), border_radius=4)
-        pygame.draw.rect(screen, (70, 70, 85), (tx, ty, tile_w, tile_h), 1, border_radius=4)
+                is_active = pi == pack_idx
+                # pack name bar
+                bar_bg = (50, 60, 80) if is_active else (35, 35, 48)
+                pygame.draw.rect(screen, bar_bg, (40, py, WIN_W - 80, 28), border_radius=4)
+                name_txt = font.render(pack["name"], True, TEXT_COLOR if is_active else TEXT_DIM)
+                screen.blit(name_txt, (50, py + 5))
+                n_levels = len(pack.get("levels", []))
+                count_txt = font_sm.render(f"{n_levels} levels", True, TEXT_DIM)
+                screen.blit(count_txt, (WIN_W - 130, py + 7))
 
-        # level number
-        num = font.render(str(i + 1), True, TEXT_COLOR)
-        screen.blit(num, (tx + tile_w // 2 - num.get_width() // 2, ty + 6))
+                # delete button
+                dbx = WIN_W - 75
+                dby = py + 2
+                dbw, dbh = 30, 22
+                d_hov = dbx <= mouse_pos[0] < dbx + dbw and dby <= mouse_pos[1] < dby + dbh
+                d_bg = (180, 50, 50) if d_hov else (80, 40, 40)
+                pygame.draw.rect(screen, d_bg, (dbx, dby, dbw, dbh), border_radius=3)
+                screen.blit(font_sm.render("X", True, TEXT_COLOR), (dbx + 10, dby + 3))
+                action_rects.append((dbx, dby, dbw, dbh, ("delete_pack", pi)))
 
-        # stars
-        star_text = STAR_CHARS[min(star, 3)]
-        star_color = STAR_COLORS[min(star, 3)]
-        st = font_sm.render(star_text, True, star_color)
-        screen.blit(st, (tx + tile_w // 2 - st.get_width() // 2, ty + 38))
+                # pack level tiles
+                levels = pack.get("levels", [])
+                for li, level in enumerate(levels):
+                    col = li % 8
+                    row = li // 8
+                    tx = 50 + col * 70
+                    ty = py + 34 + row * 50
 
-        btn_rects.append((tx, ty, tile_w, tile_h, i))
+                    if ty + 45 < 80 or ty > WIN_H:
+                        continue
 
-    return btn_rects
+                    hovered = tx <= mouse_pos[0] < tx + 60 and ty <= mouse_pos[1] < ty + 42
+                    bg = (55, 55, 75) if hovered else (35, 35, 48)
+                    pygame.draw.rect(screen, bg, (tx, ty, 60, 42), border_radius=3)
+                    pygame.draw.rect(screen, (70, 70, 85), (tx, ty, 60, 42), 1, border_radius=3)
+
+                    num = font_sm.render(f"P{pi+1}.{li+1}", True, TEXT_COLOR)
+                    screen.blit(num, (tx + 30 - num.get_width() // 2, ty + 4))
+
+                    nc = len(level.get("cells", []))
+                    info = font_sm.render(f"{nc}c", True, TEXT_DIM)
+                    screen.blit(info, (tx + 30 - info.get_width() // 2, ty + 22))
+
+                    btn_rects.append((tx, ty, 60, 42, ("pack_level", pi, li)))
+
+    return btn_rects, tab_rects, action_rects
 
 
 def draw_settings_screen(screen, font, font_sm, sim_speed, show_gridlines, mouse_pos):
@@ -2052,6 +2440,12 @@ def main():
     show_gridlines = False
     show_pause_menu = False
     level_select_scroll = 0
+    level_select_tab = "campaign"  # "campaign" | "packs"
+    community_packs = []  # list of {"name": str, "code": str, "levels": [level_dicts]}
+    pack_idx = 0
+    level_select_tab_rects = []
+    level_select_action_rects = []
+
     title_tick = 0
 
     # load saved progress
@@ -2062,12 +2456,19 @@ def main():
                 stars[i] = s
         sim_speed = saved.get("speed", 1)
         show_gridlines = saved.get("gridlines", False)
+        # load saved packs
+        for p in saved.get("packs", []):
+            name, levels = deserialize_pack(p.get("code", ""))
+            if levels:
+                community_packs.append({"name": name, "code": p["code"], "levels": levels})
 
     level_idx = 0
     active_team = 0
 
     def default_verbs():
-        v = {WALL_RED: VERB_PASS, WALL_YELLOW: VERB_PASS, WALL_BLUE: VERB_PASS}
+        v = {}
+        for c in ASSIGNABLE_TYPES:
+            v[c] = VERB_PASS
         for ec in EDITOR_ASSIGNABLE:
             v[ec] = VERB_PASS
         return v
@@ -2151,7 +2552,16 @@ def main():
             active_team = 0
         else:
             nt = num_teams()
-            verbs_list = [default_verbs() for _ in range(nt)]
+            dv = get_disabled_verbs(level)
+            vl = []
+            for _ in range(nt):
+                v = default_verbs()
+                # if Pass is disabled for a color, start at first allowed verb
+                for color, disabled in dv.items():
+                    if VERB_PASS in disabled:
+                        v[color] = cycle_verb(VERB_PASS, disabled)
+                vl.append(v)
+            verbs_list = vl
             active_team = 0
         reset_level()
 
@@ -2203,11 +2613,18 @@ def main():
         screen_mode = "play"
         reset_level()
 
+    testing_editor_level = False
+    saved_editor_grid = None
+    saved_editor_agents = None
+    saved_editor_test_level = None
+
     def editor_test():
-        """Build a level from grid, check solvable, switch to play mode."""
+        """Build a level from grid, switch to play mode. Preserves editor state."""
         nonlocal editor_mode, screen_mode, grid, agents, underneath, walls_start
         nonlocal paused, step, total_spawned, peak_pop
         nonlocal level_idx, verbs_list, active_team
+        nonlocal testing_editor_level, saved_editor_grid, saved_editor_agents, saved_editor_test_level
+        import copy
 
         if not editor_agents:
             editor_state["status_msg"] = "Place at least 1 agent (Shift+click)"
@@ -2215,6 +2632,10 @@ def main():
         if count_walls(grid, {}) == 0:
             editor_state["status_msg"] = "Place some cells first!"
             return
+
+        # save editor state for returning
+        saved_editor_grid = copy.deepcopy(grid)
+        saved_editor_agents = copy.deepcopy(editor_agents)
 
         # build level from current grid
         level = grid_to_level(grid, [], {})
@@ -2226,9 +2647,11 @@ def main():
         if editor_state["per_agent"]:
             level["per_agent_rules"] = True
 
+        saved_editor_test_level = level
+
         # add as temp level and switch to it
         if len(LEVELS) > NUM_LEVELS:
-            LEVELS.pop()  # remove previous test level
+            LEVELS.pop()
         LEVELS.append(level)
         level_idx = len(LEVELS) - 1
         nt = len(set(a.get("team", 0) for a in editor_agents)) if editor_state["per_agent"] else 1
@@ -2243,7 +2666,33 @@ def main():
         peak_pop = len(agents)
         editor_mode = False
         screen_mode = "play"
+        testing_editor_level = True
         editor_state["status_msg"] = ""
+
+    def return_to_editor():
+        """Return from testing to the editor with grid preserved."""
+        nonlocal editor_mode, screen_mode, grid, editor_agents, underneath
+        nonlocal testing_editor_level
+        import copy
+        editor_mode = True
+        screen_mode = "play"
+        testing_editor_level = False
+        if saved_editor_grid:
+            grid = copy.deepcopy(saved_editor_grid)
+            editor_agents[:] = copy.deepcopy(saved_editor_agents) if saved_editor_agents else []
+        underneath = {}
+        editor_state["status_msg"] = "Back in editor. E=exit, T=test again"
+
+    def reset_test_level():
+        """Reset the test level (re-run from start, keep verbs)."""
+        nonlocal grid, agents, underneath, walls_start, paused, step, total_spawned, peak_pop
+        if saved_editor_test_level:
+            grid, agents, underneath = make_grid(saved_editor_test_level)
+            walls_start = count_walls(grid, underneath)
+            paused = True
+            step = 0
+            total_spawned = len(agents)
+            peak_pop = len(agents)
 
     def editor_copy():
         level = grid_to_level(grid, [], {})
@@ -2352,7 +2801,7 @@ def main():
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                save_progress(stars, sim_speed, show_gridlines)
+                save_progress(stars, sim_speed, show_gridlines, community_packs)
                 running = False
 
             elif event.type == pygame.KEYDOWN:
@@ -2360,7 +2809,7 @@ def main():
                 # ── title screen ──
                 if screen_mode == "title":
                     if event.key == pygame.K_ESCAPE:
-                        save_progress(stars, sim_speed, show_gridlines)
+                        save_progress(stars, sim_speed, show_gridlines, community_packs)
                         running = False
                     elif event.key == pygame.K_e:
                         enter_editor()
@@ -2371,11 +2820,27 @@ def main():
                 elif screen_mode == "level_select":
                     if event.key == pygame.K_ESCAPE:
                         screen_mode = "title"
+                    elif event.key == pygame.K_v:
+                        # paste pack code
+                        try:
+                            raw = pygame.scrap.get(pygame.SCRAP_TEXT)
+                            if raw:
+                                code = raw.decode().strip().rstrip('\x00')
+                                name, levels = deserialize_pack(code)
+                                if levels:
+                                    community_packs.append({"name": name, "code": code, "levels": levels})
+                                    level_select_tab = "packs"
+                                    save_progress(stars, sim_speed, show_gridlines, community_packs)
+                        except Exception:
+                            pass
+                    elif event.key == pygame.K_TAB:
+                        level_select_tab = "packs" if level_select_tab == "campaign" else "campaign"
+                        level_select_scroll = 0
 
                 # ── settings ──
                 elif screen_mode == "settings":
                     if event.key == pygame.K_ESCAPE:
-                        save_progress(stars, sim_speed, show_gridlines)
+                        save_progress(stars, sim_speed, show_gridlines, community_packs)
                         screen_mode = "title"
 
                 # ── play mode ──
@@ -2384,8 +2849,10 @@ def main():
                         if editor_mode:
                             exit_editor()
                             screen_mode = "level_select"
+                        elif testing_editor_level:
+                            return_to_editor()
                         elif show_pause_menu:
-                            save_progress(stars, sim_speed, show_gridlines)
+                            save_progress(stars, sim_speed, show_gridlines, community_packs)
                             screen_mode = "level_select"
                         elif step > 0 and not editor_mode:
                             show_pause_menu = True
@@ -2397,6 +2864,8 @@ def main():
                         if editor_mode:
                             exit_editor()
                             screen_mode = "level_select"
+                        elif testing_editor_level:
+                            return_to_editor()
                         else:
                             enter_editor()
 
@@ -2467,13 +2936,21 @@ def main():
                         if event.key == pygame.K_SPACE:
                             paused = not paused
                         elif event.key == pygame.K_r:
-                            reset_level()
+                            if testing_editor_level:
+                                reset_test_level()
+                            else:
+                                reset_level()
                         elif event.key == pygame.K_n:
-                            change_level(level_idx + 1)
+                            if not testing_editor_level:
+                                change_level(level_idx + 1)
                         elif event.key == pygame.K_p:
-                            change_level(level_idx - 1)
+                            if not testing_editor_level:
+                                change_level(level_idx - 1)
                         elif event.key == pygame.K_l:
-                            screen_mode = "level_select"
+                            if testing_editor_level:
+                                return_to_editor()
+                            else:
+                                screen_mode = "level_select"
                         elif event.key == pygame.K_TAB:
                             if num_teams() > 1:
                                 active_team = (active_team + 1) % num_teams()
@@ -2492,9 +2969,60 @@ def main():
                             break
 
                 elif screen_mode == "level_select":
-                    for bx, by, bw, bh, idx in level_select_rects:
+                    # tab clicks
+                    for bx, by, bw, bh, key in level_select_tab_rects:
                         if bx <= mouse_pos[0] < bx + bw and by <= mouse_pos[1] < by + bh:
-                            start_level(idx)
+                            level_select_tab = key
+                            level_select_scroll = 0
+                            break
+                    # action buttons (load/share/delete)
+                    for bx, by, bw, bh, action in level_select_action_rects:
+                        if bx <= mouse_pos[0] < bx + bw and by <= mouse_pos[1] < by + bh:
+                            if action == "load_pack":
+                                try:
+                                    raw = pygame.scrap.get(pygame.SCRAP_TEXT)
+                                    if raw:
+                                        code = raw.decode().strip().rstrip('\x00')
+                                        name, levels = deserialize_pack(code)
+                                        if levels:
+                                            community_packs.append({"name": name, "code": code, "levels": levels})
+                                            save_progress(stars, sim_speed, show_gridlines, community_packs)
+                                except Exception:
+                                    pass
+                            elif action == "share_pack":
+                                if community_packs and pack_idx < len(community_packs):
+                                    code = community_packs[pack_idx].get("code", "")
+                                    if code:
+                                        try:
+                                            pygame.scrap.put(pygame.SCRAP_TEXT, code.encode())
+                                        except Exception:
+                                            pass
+                            elif isinstance(action, tuple) and action[0] == "delete_pack":
+                                pi = action[1]
+                                if 0 <= pi < len(community_packs):
+                                    community_packs.pop(pi)
+                                    if pack_idx >= len(community_packs):
+                                        pack_idx = max(0, len(community_packs) - 1)
+                                    save_progress(stars, sim_speed, show_gridlines, community_packs)
+                            break
+                    # level tile clicks
+                    for rect in level_select_rects:
+                        bx, by, bw, bh = rect[:4]
+                        data = rect[4]
+                        if bx <= mouse_pos[0] < bx + bw and by <= mouse_pos[1] < by + bh:
+                            if isinstance(data, tuple) and data[0] == "level":
+                                start_level(data[1])
+                            elif isinstance(data, tuple) and data[0] == "pack_level":
+                                pi, li = data[1], data[2]
+                                if pi < len(community_packs) and li < len(community_packs[pi]["levels"]):
+                                    pack_level = community_packs[pi]["levels"][li]
+                                    # add as temp level and play it
+                                    if len(LEVELS) > NUM_LEVELS:
+                                        LEVELS.pop()
+                                    LEVELS.append(pack_level)
+                                    start_level(len(LEVELS) - 1)
+                            elif isinstance(data, int):
+                                start_level(data)
                             break
 
                 elif screen_mode == "settings":
@@ -2506,9 +3034,9 @@ def main():
                                 show_gridlines = val
                             elif key == "reset":
                                 stars = [0] * NUM_LEVELS
-                                save_progress(stars, sim_speed, show_gridlines)
+                                save_progress(stars, sim_speed, show_gridlines, community_packs)
                             elif key == "back":
-                                save_progress(stars, sim_speed, show_gridlines)
+                                save_progress(stars, sim_speed, show_gridlines, community_packs)
                                 screen_mode = "title"
                             break
 
@@ -2525,7 +3053,7 @@ def main():
                                 show_pause_menu = False
                                 screen_mode = "level_select"
                             elif action == "quit":
-                                save_progress(stars, sim_speed, show_gridlines)
+                                save_progress(stars, sim_speed, show_gridlines, community_packs)
                                 screen_mode = "title"
                             break
 
@@ -2635,7 +3163,8 @@ def main():
                                 break
                         for bx, by, bw, bh, wall_type in btn_hit_rects:
                             if bx <= mouse_pos[0] < bx + bw and by <= mouse_pos[1] < by + bh:
-                                verbs_list[active_team][wall_type] = (verbs_list[active_team][wall_type] + 1) % VERB_COUNT
+                                disabled = get_disabled_verbs(LEVELS[level_idx % NUM_LEVELS]).get(wall_type, [])
+                                verbs_list[active_team][wall_type] = cycle_verb(verbs_list[active_team][wall_type], disabled)
                                 break
 
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
@@ -2673,7 +3202,7 @@ def main():
                     new_stars = max(new_stars, 2)  # at least "perfect" for intercept win
                 if level_idx < len(stars) and new_stars > stars[level_idx]:
                     stars[level_idx] = new_stars
-                    save_progress(stars, sim_speed, show_gridlines)
+                    save_progress(stars, sim_speed, show_gridlines, community_packs)
 
             if not paused and not game_over and now - last_sim_tick >= tick_ms:
                 last_sim_tick = now
@@ -2688,7 +3217,9 @@ def main():
             title_btn_rects = draw_title_screen(screen, font, font_sm, font_lg, mouse_pos, title_tick)
 
         elif screen_mode == "level_select":
-            level_select_rects = draw_level_select(screen, font, font_sm, stars, mouse_pos, level_select_scroll)
+            level_select_rects, level_select_tab_rects, level_select_action_rects = draw_level_select(
+                screen, font, font_sm, stars, mouse_pos, level_select_scroll,
+                level_select_tab, community_packs, pack_idx)
 
         elif screen_mode == "settings":
             settings_rects = draw_settings_screen(screen, font, font_sm, sim_speed, show_gridlines, mouse_pos)
@@ -2766,7 +3297,8 @@ def main():
                 btn_hit_rects, tab_hit_rects = draw_panel(
                     screen, font, font_sm, verbs_list, active_team, num_teams(),
                     step, agents, total_spawned, peak_pop, walls_left, walls_start,
-                    paused, mouse_pos, level_idx, evil_rules=cur_evil)
+                    paused, mouse_pos, level_idx, evil_rules=cur_evil,
+                    is_testing=testing_editor_level)
 
                 # star rating after level complete
                 if walls_left == 0 and step > 0:
@@ -2787,4 +3319,5 @@ def main():
     sys.exit()
 
 
-main()
+if __name__ == "__main__":
+    main()
