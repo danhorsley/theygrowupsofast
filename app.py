@@ -1020,14 +1020,156 @@ LEVELS += [
                 {"x":0,"y":0,"dx":0,"dy":-1,"team":3}]},
 ]
 
+# ── Phase 23: The Replic8 — signature level shaped like an 8 ──
+
+LEVELS.append(
+    {"cells": [(1,0,Y),(2,0,W),(3,0,W),(4,0,W),(5,0,W),(6,0,Y),
+               (0,1,Y),(1,1,B),(6,1,B),(7,1,Y),
+               (0,2,W),(7,2,W),
+               (0,3,W),(7,3,W),
+               (0,4,Y),(1,4,B),(6,4,B),(7,4,Y),
+               (1,5,Y),(2,5,B),(5,5,B),(6,5,Y),
+               (2,6,Y),(3,6,B),(4,6,P),(5,6,Y),
+               (3,7,(R,Y)),(4,7,Y),
+               (2,8,P),(4,8,B),(5,8,Y),
+               (1,9,Y),(2,9,B),(5,9,B),(6,9,Y),
+               (0,10,Y),(1,10,B),(6,10,B),(7,10,Y),
+               (0,11,W),(7,11,W),
+               (0,12,W),(7,12,W),
+               (0,13,Y),(1,13,B),(6,13,B),(7,13,Y),
+               (1,14,Y),(2,14,W),(3,14,W),(4,14,W),(5,14,W),(6,14,Y)],
+     "start": (3,8), "dir": (0,-1)},
+)
+
+# ── Phase: Cross-junction levels ──
+# Hand-designed 4-color cross with R=Pass, Y=TurnLeft, B=TurnRight, T=Replicate
+
+# User's hand-designed cross-junction (48 cells, 1 solution, pk=3)
+# R=Pass, Y=TurnLeft, B=TurnRight, T=Replicate
+LEVELS += (
+    {"cells": [(3,0,B),(4,0,R),(5,0,R),(6,0,B),(3,1,R),(6,1,R),(3,2,R),(6,2,P),
+               (0,3,Y),(1,3,R),(2,3,R),(3,3,(WALL_TEAL,B)),(4,3,(Y,B)),(5,3,R),(6,3,R),(7,3,R),(8,3,R),(9,3,B),
+               (0,4,R),(3,4,P),(4,4,WALL_TEAL),(5,4,P),(6,4,P),(9,4,R),
+               (0,5,R),(3,5,R),(5,5,R),(6,5,R),(9,5,R),
+               (0,6,Y),(1,6,R),(2,6,R),(3,6,Y),(4,6,B),(5,6,Y),(6,6,(Y,B)),(7,6,WALL_TEAL),(8,6,R),(9,6,B),
+               (3,7,B),(4,7,Y),(6,7,R),(3,8,R),(6,8,R),(3,9,B),(4,9,R),(5,9,R),(6,9,B)],
+     "agents": [{"x": 4, "y": 5, "dx": 0, "dy": -1, "team": 0}]},
+)
+
+# Expanded cross-junction reward level (64 cells, 4 agents, pk=8, 2 solutions)
+# arm=4, depth=1: 4 agents from center, each splits into 2 sub-arms
+def _build_cross_reward():
+    cells = {}
+    def add(x, y, c):
+        if (x, y) not in cells: cells[(x, y)] = c
+    def branching_arm(ox, oy, dx, dy, arm_len, depth):
+        x, y = ox, oy
+        for i in range(arm_len):
+            add(x, y, R); x += dx; y += dy
+        if depth <= 0:
+            add(x, y, P); return
+        add(x, y, WALL_TEAL)
+        fx, fy = x + dx, y + dy
+        add(fx, fy, (Y, B))
+        ldx, ldy = dy, -dx   # turn left
+        rdx, rdy = -dy, dx   # turn right
+        branching_arm(fx + ldx, fy + ldy, ldx, ldy, arm_len, depth - 1)
+        branching_arm(fx + rdx, fy + rdy, rdx, rdy, arm_len, depth - 1)
+    for sx, sy, dx, dy in [(0,-1,0,-1),(0,1,0,1),(1,0,1,0),(-1,0,-1,0)]:
+        branching_arm(sx, sy, dx, dy, 4, 1)
+    return {
+        "cells": [(x, y, c) for (x, y), c in cells.items()],
+        "agents": [
+            {"x": 0, "y": 0, "dx": 0, "dy": -1, "team": 0},
+            {"x": 0, "y": 0, "dx": 0, "dy": 1, "team": 0},
+            {"x": 0, "y": 0, "dx": 1, "dy": 0, "team": 0},
+            {"x": 0, "y": 0, "dx": -1, "dy": 0, "team": 0},
+        ],
+    }
+
+LEVELS += (_build_cross_reward(),)
+
+# ── Phase: Dense swap levels ──
+# Single agent walks top row, replicates at sandwich, child drops to bottom row.
+# R=Pass, Y=TurnLeft, B=TurnRight, T=Replicate. All unique solutions.
+
+# ── Phase: Ping-Pong — introduces reverse (bounce) cells ──
+# Agent bounces up/down columns of T(pass)/Rev(reverse), replicates to side columns.
+# R=Replicate, Y=TurnLeft, B=TurnRight, T=Pass. 1 unique solution.
+_RV = FIXED_REVERSE
+LEVELS += (
+    {"cells": [(0,0,P),(7,0,P),(14,0,P),
+               (0,1,WALL_TEAL),(7,1,WALL_TEAL),(14,1,WALL_TEAL),
+               (0,2,_RV),(7,2,_RV),(14,2,_RV),
+               (0,3,WALL_TEAL),(7,3,WALL_TEAL),(14,3,WALL_TEAL),
+               (0,4,_RV),(7,4,_RV),(14,4,_RV),
+               (0,5,WALL_TEAL),(7,5,WALL_TEAL),(14,5,WALL_TEAL),
+               (0,6,_RV),(7,6,_RV),(14,6,_RV),
+               (0,7,Y),(7,7,(B,Y)),(14,7,B),
+               (0,8,_RV),(7,8,WALL_TEAL),(14,8,_RV),
+               (0,9,WALL_TEAL),(7,9,R),(14,9,WALL_TEAL),
+               (0,10,_RV),(7,10,WALL_TEAL),(14,10,_RV),
+               (0,11,WALL_TEAL),(7,11,R),(14,11,WALL_TEAL),
+               (0,12,_RV),(14,12,_RV),
+               (0,13,WALL_TEAL),(7,13,_RV),(14,13,WALL_TEAL),
+               (0,14,_RV),(7,14,WALL_TEAL),(14,14,_RV),
+               (7,15,_RV),(7,16,WALL_TEAL),(7,17,_RV)],
+     "agents": [{"x": 7, "y": 12, "dx": 0, "dy": -1, "team": 0}]},
+)
+
+def _dense_swap(top_pre, top_post, bot_len, gap):
+    cells = []; seen = set()
+    def add(x,y,c):
+        if (x,y) not in seen: cells.append((x,y,c)); seen.add((x,y))
+    for i in range(top_pre): add(i, 0, R)
+    sx = top_pre
+    add(sx, 0, WALL_TEAL); add(sx+1, 0, (B, R))
+    for i in range(top_post): add(sx+2+i, 0, R)
+    add(sx+2+top_post, 0, FIXED_DISSOLVE)
+    bot_y = gap + 1
+    add(sx+1, bot_y, Y)
+    for i in range(bot_len): add(sx+2+i, bot_y, R)
+    add(sx+2+bot_len, bot_y, FIXED_DISSOLVE)
+    return {"cells": cells, "start": (-1, 0), "dir": (1, 0)}
+
+LEVELS += (
+    # Compact swap: gap=1, tight
+    _dense_swap(top_pre=2, top_post=3, bot_len=4, gap=1),
+    # Wider swap: gap=2, more dramatic drop
+    _dense_swap(top_pre=3, top_post=4, bot_len=5, gap=2),
+    # Big swap: gap=3, longer paths
+    _dense_swap(top_pre=4, top_post=4, bot_len=6, gap=3),
+)
+
+# ── Phase: "Surrounded" — 5-color aha moment ──
+# R=Pass, Y=TurnLeft, B=TurnLeft(!), Pk=Replicate, T=Dissolve
+# The misdirection: Y and B are BOTH TurnLeft. Teal dissolves instead of replicates.
+# Pink (appears once as sandwich) is the actual Replicate.
+LEVELS += (
+    {"cells": [(0,0,WALL_TEAL),(1,0,R),(2,0,R),(3,0,R),(4,0,R),(5,0,R),(6,0,R),(7,0,B),
+               (0,1,B),(1,1,(WALL_PINK,Y)),(2,1,R),(3,1,R),(4,1,R),(5,1,R),(6,1,B),(7,1,R),
+               (0,2,R),(1,2,R),(2,2,B),(3,2,R),(4,2,Y),(5,2,WALL_TEAL),(6,2,R),(7,2,R),
+               (0,3,R),(1,3,R),(2,3,R),(5,3,R),(6,3,R),(7,3,R),
+               (0,4,R),(1,4,B),(2,4,R),(3,4,R),(4,4,R),(5,4,Y),(6,4,R),(7,4,R),
+               (0,5,R),(2,5,B),(3,5,R),(4,5,R),(5,5,R),(6,5,Y),(7,5,R),
+               (0,6,Y),(1,6,R),(2,6,R),(3,6,R),(4,6,R),(5,6,R),(6,6,R),(7,6,Y)],
+     "agents": [{"x": 4, "y": 3, "dx": 0, "dy": -1, "team": 0}]},
+)
+
 # ── campaign order: curated selection from all levels ──
 # Indices into the full LEVELS list above. The "album" from the "songbook."
 
 # Count levels just added
 _N = len(LEVELS)
-_MAND_START = _N - 2    # 2 mandala levels
-_TP_START = _MAND_START - 3  # 3 teleport levels
-_4C_START = _TP_START - 4    # 4 four-color levels
+_R8 = _N - 1              # the Replic8 level (figure-8)
+_SURROUNDED = _R8 - 1     # "Surrounded" 5-color aha
+_SWAP_START = _SURROUNDED - 3    # 3 dense swap levels
+_PINGPONG = _SWAP_START - 1      # ping-pong (introduces reverse)
+_CROSS_REWARD = _PINGPONG - 1    # expanded cross-junction reward
+_CROSS_HAND = _CROSS_REWARD - 1  # hand-designed cross-junction
+_MAND_START = _CROSS_HAND - 2    # 2 mandala levels
+_TP_START = _MAND_START - 3      # 3 teleport levels
+_4C_START = _TP_START - 4        # 4 four-color levels
 
 CAMPAIGN_ORDER = [
     # Act 1: Tutorial (7)
@@ -1042,12 +1184,21 @@ CAMPAIGN_ORDER = [
     79, 80, 81, 82,
     # Act 6: No-Pass (6)
     83, 84, 85, 86, 87, 88,
-    # Act 7: 4-color (4)
+    # Act 7: 4-color + Ping-Pong intro to reverse (5)
     _4C_START, _4C_START+1, _4C_START+2, _4C_START+3,
+    _PINGPONG,
     # Act 8: Teleport (3)
     _TP_START, _TP_START+1, _TP_START+2,
     # Act 9: Mandala showcase (2)
     _MAND_START, _MAND_START+1,
+    # Act 10: Cross-junction (2) — solve locally, watch it scale
+    _CROSS_HAND, _CROSS_REWARD,
+    # Act 11: Dense swap (3) — agent replicates, child drops to parallel path
+    _SWAP_START, _SWAP_START+1, _SWAP_START+2,
+    # Act 12: Surrounded — 5-color "aha" (everything you knew is wrong)
+    _SURROUNDED,
+    # Finale: The Replic8
+    _R8,
 ]
 
 CAMPAIGN = [LEVELS[i] for i in CAMPAIGN_ORDER if i < len(LEVELS)]
@@ -1286,18 +1437,9 @@ def draw_editor_panel(screen, font, font_sm, editor_state, mouse_pos):
     screen.blit(font.render("LEVEL EDITOR", True, (255, 200, 80)), (px + 10, y))
     y += 24
 
-    # help toggle button
+    # one-line hint (H key toggles help overlay)
     show_help = editor_state.get("show_help", False)
-    hbx, hby = px + PANEL_W - 50, y
-    hbw, hbh = 42, 18
-    h_hov = hbx <= mouse_pos[0] < hbx + hbw and hby <= mouse_pos[1] < hby + hbh
-    h_bg = (80, 160, 200) if show_help else (55, 55, 70) if h_hov else (40, 40, 52)
-    pygame.draw.rect(screen, h_bg, (hbx, hby, hbw, hbh), border_radius=3)
-    h_fg = (0, 0, 0) if show_help else TEXT_COLOR
-    screen.blit(font_sm.render("? Help", True, h_fg), (hbx + 3, hby + 1))
-    help_btn = (hbx, hby, hbw, hbh, "help_toggle")
-
-    # one-line hint
+    help_btn = None  # no separate button needed, H key handles it
     screen.blit(font_sm.render("H=help  T=test  C=copy  V=paste", True, TEXT_DIM), (px + 8, y))
     y += 20
 
@@ -1435,17 +1577,22 @@ def draw_editor_panel(screen, font, font_sm, editor_state, mouse_pos):
         screen.blit(font_sm.render(msg, True, mc), (px + 10, y))
         y += 16
 
-    # level code (compact)
+    # level code (full, wrapped)
     code = editor_state.get("level_code", "")
     if code:
         cw = PANEL_W - 20
         chars = cw // 7
-        for i in range(0, min(len(code), chars * 3), chars):
+        max_lines = 6
+        for i in range(0, len(code), chars):
+            if i // chars >= max_lines:
+                screen.blit(font_sm.render("...", True, (100, 120, 150)), (px + 10, y))
+                y += 13
+                break
             screen.blit(font_sm.render(code[i:i+chars], True, (150, 180, 220)), (px + 10, y))
             y += 13
 
     # return all clickable rects: btn_rects (cells) + action_rects + special buttons
-    all_special = [agent_btn, per_agent_btn, help_btn] + count_rects
+    all_special = [agent_btn, per_agent_btn] + count_rects
     return btn_rects, action_rects + all_special
 
 
@@ -1767,6 +1914,10 @@ def draw_cell(screen, rx, ry, cell):
             pygame.draw.rect(screen, WCOLOR[color], (rx + 1, sy, CELL - 2, sh))
             if color in FIXED_TYPES or color in EDITOR_EXTRA_TYPES:
                 pygame.draw.rect(screen, (255,255,255), (rx+3, sy+1, CELL-6, max(sh-2, 1)), 1)
+            # dividing line between same-color adjacent layers
+            if i > 0 and cell[i] == cell[i-1]:
+                div_y = ry + 1 + (inner_h * i) // n
+                pygame.draw.line(screen, (30, 30, 40), (rx + 2, div_y), (rx + CELL - 3, div_y))
     elif cell in WCOLOR:
         pygame.draw.rect(screen, WCOLOR[cell], (rx+1, ry+1, CELL-2, CELL-2))
         if cell in FIXED_TYPES:
@@ -1848,6 +1999,9 @@ def draw_preview_cell(screen, rx, ry, cell, pc):
             sy = ry + (pc * i) // n
             sh = (pc * (i + 1)) // n - (pc * i) // n
             pygame.draw.rect(screen, WCOLOR[color], (rx, sy, pc, sh))
+            if i > 0 and cell[i] == cell[i-1]:
+                div_y = ry + (pc * i) // n
+                pygame.draw.line(screen, (30, 30, 40), (rx + 1, div_y), (rx + pc - 2, div_y))
     elif cell in WCOLOR:
         pygame.draw.rect(screen, WCOLOR[cell], (rx, ry, pc, pc))
         if cell in FIXED_TYPES:
@@ -1907,7 +2061,7 @@ def draw_panel(screen, font, font_sm, verbs_list, active_team, n_teams, step, ag
     is_intercept = level.get("mode") == "intercept"
 
     y = 10
-    screen.blit(font.render("THEY GROW UP SO FAST", True, TEXT_COLOR), (px + 10, y))
+    screen.blit(font.render("REPLIC8", True, TEXT_COLOR), (px + 10, y))
     y += 24
     screen.blit(font_sm.render(f"Level {level_idx + 1} / {NUM_LEVELS}", True, TEXT_DIM), (px + 12, y))
     y += 22
@@ -2133,10 +2287,10 @@ def draw_title_screen(screen, font, font_sm, font_lg, mouse_pos, tick):
     cx = WIN_W // 2
 
     # title
-    title = font_lg.render("THEY GROW UP SO FAST", True, (220, 210, 70))
+    title = font_lg.render("REPLIC8", True, (220, 210, 70))
     screen.blit(title, (cx - title.get_width() // 2, 140))
 
-    sub = font_sm.render("A puzzle game about replication", True, TEXT_DIM)
+    sub = font_sm.render("Set the rules. Watch them propagate.", True, TEXT_DIM)
     screen.blit(sub, (cx - sub.get_width() // 2, 200))
 
     # animated replicator dots
@@ -2427,7 +2581,7 @@ def calc_stars(walls_left, agents_alive, step, level):
 def main():
     pygame.init()
     screen = pygame.display.set_mode((WIN_W, WIN_H))
-    pygame.display.set_caption("They Grow Up So Fast")
+    pygame.display.set_caption("Replic8")
     clock = pygame.time.Clock()
     font    = pygame.font.SysFont("consolas", 15)
     font_sm = pygame.font.SysFont("consolas", 13)
