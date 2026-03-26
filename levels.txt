@@ -1,0 +1,7 @@
+# Replic8 — Community Levels
+# Add one level code per line (TGUSF1-...)
+# These are loaded automatically and appear after the campaign levels.
+# Lines starting with # are comments.
+#
+# To add a level: copy the code from the editor (C key) and paste here.
+# Restart the game to see new levels in the level select.

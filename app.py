@@ -8,6 +8,18 @@
 import pygame
 import sys
 import os
+import asyncio
+
+# ensure our own directory is on the path for sibling imports (sound.py, fractal.py)
+_THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+if _THIS_DIR not in sys.path:
+    sys.path.insert(0, _THIS_DIR)
+
+try:
+    from sound import GameSounds
+    _HAS_SOUND = True
+except (ImportError, Exception):
+    _HAS_SOUND = False
 
 # ── layout ──
 
@@ -41,8 +53,26 @@ FIXED_ONE_WAY_R  = 12  # white-right — passable going right, blocks other dirs
 FIXED_ONE_WAY_D  = 13  # white-down
 FIXED_ONE_WAY_L  = 14  # white-left
 FIXED_ONE_WAY_U  = 15  # white-up
-FIXED_TELEPORT_A = 16  # magenta — teleport entrance (paired with B)
-FIXED_TELEPORT_B = 17  # magenta — teleport exit
+FIXED_TELEPORT_A = 16  # teleport pair 1 entrance (legacy, kept for compat)
+FIXED_TELEPORT_B = 17  # teleport pair 1 exit (legacy)
+
+# multi-pair teleports: 4 pairs, In/Out each
+TELE_IN_1  = 16  # same as FIXED_TELEPORT_A (pair 1 in)
+TELE_OUT_1 = 17  # same as FIXED_TELEPORT_B (pair 1 out)
+TELE_IN_2  = 20
+TELE_OUT_2 = 21
+TELE_IN_3  = 22
+TELE_OUT_3 = 23
+TELE_IN_4  = 24
+TELE_OUT_4 = 25
+
+TELE_PAIRS = {
+    TELE_IN_1: TELE_OUT_1, TELE_OUT_1: TELE_IN_1,
+    TELE_IN_2: TELE_OUT_2, TELE_OUT_2: TELE_IN_2,
+    TELE_IN_3: TELE_OUT_3, TELE_OUT_3: TELE_IN_3,
+    TELE_IN_4: TELE_OUT_4, TELE_OUT_4: TELE_IN_4,
+}
+ALL_TELE_TYPES = tuple(TELE_PAIRS.keys())
 
 # editor-only assignable colors (not used in campaign)
 WALL_PINK  = 18
@@ -54,15 +84,18 @@ ALL_ASSIGNABLE = ASSIGNABLE_TYPES + EDITOR_ASSIGNABLE
 FIXED_TYPES = (FIXED_REPLICATE, FIXED_DISSOLVE, FIXED_TURN_RIGHT, FIXED_TURN_LEFT, FIXED_PASS)
 EDITOR_EXTRA_TYPES = (FIXED_REVERSE, FIXED_SKIP,
                       FIXED_ONE_WAY_R, FIXED_ONE_WAY_D, FIXED_ONE_WAY_L, FIXED_ONE_WAY_U,
-                      FIXED_TELEPORT_A, FIXED_TELEPORT_B)
+                      TELE_IN_1, TELE_OUT_1, TELE_IN_2, TELE_OUT_2,
+                      TELE_IN_3, TELE_OUT_3, TELE_IN_4, TELE_OUT_4)
 ALL_WALL_TYPES = ALL_ASSIGNABLE + FIXED_TYPES + EDITOR_EXTRA_TYPES
+# ensure all teleport types are recognized as walls
+assert all(t in ALL_WALL_TYPES for t in ALL_TELE_TYPES), "Missing teleport types in ALL_WALL_TYPES"
 
 ONE_WAY_TYPES = (FIXED_ONE_WAY_R, FIXED_ONE_WAY_D, FIXED_ONE_WAY_L, FIXED_ONE_WAY_U)
 ONE_WAY_DIR = {
     FIXED_ONE_WAY_R: (1, 0), FIXED_ONE_WAY_D: (0, 1),
     FIXED_ONE_WAY_L: (-1, 0), FIXED_ONE_WAY_U: (0, -1),
 }
-TELEPORT_TYPES = (FIXED_TELEPORT_A, FIXED_TELEPORT_B)
+TELEPORT_TYPES = ALL_TELE_TYPES
 
 COLOR_NAMES = {
     WALL_RED: "Red", WALL_YELLOW: "Yellow", WALL_BLUE: "Blue",
@@ -72,7 +105,10 @@ COLOR_NAMES = {
     FIXED_REVERSE: "Reverse", FIXED_SKIP: "Skip",
     FIXED_ONE_WAY_R: "Gate R", FIXED_ONE_WAY_D: "Gate D",
     FIXED_ONE_WAY_L: "Gate L", FIXED_ONE_WAY_U: "Gate U",
-    FIXED_TELEPORT_A: "Tele A", FIXED_TELEPORT_B: "Tele B",
+    TELE_IN_1: "Tel1→", TELE_OUT_1: "→Tel1",
+    TELE_IN_2: "Tel2→", TELE_OUT_2: "→Tel2",
+    TELE_IN_3: "Tel3→", TELE_OUT_3: "→Tel3",
+    TELE_IN_4: "Tel4→", TELE_OUT_4: "→Tel4",
     WALL_PINK: "Pink", WALL_TEAL: "Teal",
 }
 
@@ -115,7 +151,10 @@ FIXED_LABEL = {
     FIXED_PASS: "Pass", FIXED_REVERSE: "Reverse", FIXED_SKIP: "Skip",
     FIXED_ONE_WAY_R: "Gate Right", FIXED_ONE_WAY_D: "Gate Down",
     FIXED_ONE_WAY_L: "Gate Left", FIXED_ONE_WAY_U: "Gate Up",
-    FIXED_TELEPORT_A: "Teleport In", FIXED_TELEPORT_B: "Teleport Out",
+    TELE_IN_1: "Teleport 1 In", TELE_OUT_1: "Teleport 1 Out",
+    TELE_IN_2: "Teleport 2 In", TELE_OUT_2: "Teleport 2 Out",
+    TELE_IN_3: "Teleport 3 In", TELE_OUT_3: "Teleport 3 Out",
+    TELE_IN_4: "Teleport 4 In", TELE_OUT_4: "Teleport 4 Out",
 }
 
 # ── tuning ──
@@ -162,8 +201,14 @@ WCOLOR = {
     FIXED_ONE_WAY_D: (180, 180, 190),
     FIXED_ONE_WAY_L: (180, 180, 190),
     FIXED_ONE_WAY_U: (180, 180, 190),
-    FIXED_TELEPORT_A:(220, 60, 180),   # hot pink — teleport IN
-    FIXED_TELEPORT_B:(60, 200, 220),   # electric cyan — teleport OUT
+    TELE_IN_1: (160, 40, 130),     # pair 1: dark magenta IN
+    TELE_OUT_1:(230, 120, 200),   # pair 1: light magenta OUT
+    TELE_IN_2: (30, 120, 140),    # pair 2: dark cyan IN
+    TELE_OUT_2:(100, 210, 230),   # pair 2: light cyan OUT
+    TELE_IN_3: (160, 120, 30),    # pair 3: dark amber IN
+    TELE_OUT_3:(230, 200, 100),   # pair 3: light amber OUT
+    TELE_IN_4: (50, 130, 40),     # pair 4: dark lime IN
+    TELE_OUT_4:(140, 220, 120),   # pair 4: light lime OUT
     WALL_PINK:       (230, 100, 180),   # vibrant pink — 4th assignable
     WALL_TEAL:       (60, 180, 170),
 }
@@ -1156,36 +1201,173 @@ LEVELS += (
      "agents": [{"x": 4, "y": 3, "dx": 0, "dy": -1, "team": 0}]},
 )
 
+# ── Phase: Dual-constraint — two separate shapes, shared rules ──
+# Each shape alone has multiple solutions. Together: 1 unique solution.
+# The player must find rules that work for BOTH paths simultaneously.
+
+# Hand-designed dual-constraint (from user): R=Rp Y=TL B=TR T=D pk=5
+LEVELS += (
+    {"cells": [(3,0,R),(4,0,B),(4,1,Y),(9,1,R),(10,1,B),(10,2,Y),(16,0,WALL_TEAL),(17,0,B),(18,0,B),(16,1,WALL_TEAL),(17,2,Y),(18,2,Y),(21,2,P),
+               (0,11,B),(3,11,R),(4,11,B),(9,11,B),(10,11,B),(16,11,WALL_TEAL),(21,11,P),
+               (0,12,B),(4,12,B),(9,12,Y),(10,12,Y)],
+     "agents": [{"x":2,"y":0,"dx":1,"dy":0,"team":0},
+                {"x":2,"y":11,"dx":1,"dy":0,"team":0}]},
+)
+
+# Diagonal scatter (from user): R=TL Y=D B=TR pk=5
+# Agent enters, hits triple-green sandwich, spawns 5 agents that fan out diagonally
+LEVELS += (
+    {"cells": [(3,0,B),(5,0,Y),(2,3,B),(4,3,Y),(2,6,B),(4,6,Y),
+               (0,9,(G,G,G)),(1,9,(G,G,G)),(2,9,(R,B,R)),(3,9,(B,R,B)),(7,9,Y),
+               (2,12,R),(4,12,Y),(3,15,R),(5,15,Y),(3,18,R),(5,18,Y)],
+     "agents": [{"x":-1,"y":9,"dx":1,"dy":0,"team":0}]},
+)
+
+# Spiral reverse (from user): R=TL Y=Rp B=TR T=P pk=2
+LEVELS += (
+    {"cells": [(0,0,P),(1,0,P),(2,0,WALL_TEAL),(3,0,WALL_TEAL),(4,0,WALL_TEAL),(5,0,WALL_TEAL),(6,0,WALL_TEAL),(7,0,R),
+               (0,1,B),(1,1,WALL_TEAL),(7,1,R),
+               (0,2,B),(1,2,WALL_TEAL),(7,2,R),
+               (0,3,B),(1,3,WALL_TEAL),(7,3,R),
+               (0,4,B),(1,4,B),(3,4,WALL_TEAL),(4,4,WALL_TEAL),(5,4,WALL_TEAL),(6,4,FIXED_REVERSE),(7,4,R),
+               (0,5,B),(1,5,WALL_TEAL),(3,5,WALL_TEAL),(4,5,R),
+               (0,6,B),(1,6,WALL_TEAL),(4,6,R),
+               (0,7,B),(1,7,WALL_TEAL),(5,7,WALL_TEAL),(6,7,R),
+               (0,8,B),(1,8,WALL_TEAL),(6,8,R),
+               (0,9,B),(1,9,(Y,B))],
+     "agents": [{"x":1,"y":10,"dx":0,"dy":-1,"team":0}]},
+)
+
+# New dual-path (from user): R=TL Y=D B=TL Pk=Rp pk=9
+# Horizontal sandwich row + vertical alternating column, Y dissolve triangle
+LEVELS += (
+    {"cells": [(5,0,2),(6,0,2),(7,1,2),(10,1,2),(8,2,2),(9,2,2),(10,2,2),
+               (0,5,2),(5,5,(18,1)),(6,5,(18,1)),(7,5,(18,1)),(8,5,(18,1)),(9,5,(18,1)),(10,5,(1,3)),
+               (10,6,18),(0,7,2),(10,7,3),(10,8,18),(0,9,2),(10,9,3),(10,10,18),
+               (0,11,2),(10,11,3),(10,12,18),(0,13,2),(10,13,3),(10,14,18)],
+     "agents": [{"x":4,"y":5,"dx":1,"dy":0,"team":0},
+                {"x":10,"y":15,"dx":0,"dy":-1,"team":1}]},
+)
+_DUAL_PATH_NEW = len(LEVELS) - 1
+
+# Spiral generator (from user): R=TR Y=TR B=TR Pk=Rp pk=10 t=78
+# Consecutive replicates fan out into diagonal staircase pattern
+LEVELS += (
+    {"cells": [(9,0,6),(9,1,6),(9,2,6),(9,3,6),(9,4,6),(9,5,6),(9,6,6),(9,7,6),(9,8,6),(9,9,6),
+               (0,10,18),(1,10,18),(2,10,18),(3,10,18),(4,10,18),(5,10,18),(6,10,18),(7,10,18),(8,10,18),
+               (10,10,1),(11,10,3),(12,10,2),(13,10,1),(14,10,3),(15,10,2),(16,10,1),(17,10,3),(18,10,2),(19,10,1),
+               (9,11,1),(10,11,1),(9,12,3),(11,12,3),(9,13,2),(12,13,2),(9,14,1),(13,14,1),
+               (9,15,3),(14,15,3),(9,16,2),(15,16,2),(9,17,1),(16,17,1),(9,18,3),(17,18,3),(9,19,2),(18,19,2),(9,20,1),(19,20,1)],
+     "agents": [{"x":-1,"y":10,"dx":1,"dy":0,"team":0}]},
+)
+_SPIRAL_GEN = len(LEVELS) - 1
+
+# Layered factory (from user): R=TR Y=D B=Rp T=TL pk=12 t=46
+# Sandwich row produces agents that drop through B columns into Y dissolve field
+LEVELS += (
+    {"cells": [(0,0,1),(5,0,(3,1)),(7,0,(3,1)),(9,0,(3,1)),(11,0,(3,1)),(13,0,(3,1)),(15,0,(3,1)),(17,0,1),
+               (5,1,3),(7,1,3),(9,1,3),(11,1,3),(13,1,3),(15,1,3),(17,1,3),
+               (5,2,3),(7,2,3),(9,2,3),(11,2,3),(13,2,3),(15,2,3),
+               (0,4,8),(5,4,2),(6,4,2),(7,4,2),(8,4,2),(9,4,2),(10,4,2),(11,4,2),(12,4,2),(13,4,2),(14,4,2),(15,4,2),(16,4,2),(17,4,2),
+               (5,5,2),(6,5,2),(7,5,2),(8,5,2),(9,5,2),(10,5,2),(11,5,2),(12,5,2),(13,5,2),(14,5,2),(15,5,2),(16,5,2),(17,5,2),
+               (6,8,3),(8,8,3),(10,8,3),(12,8,3),(14,8,3),(16,8,3),
+               (5,9,19),(6,9,19),(7,9,19),(8,9,19),(9,9,19),(10,9,19),(11,9,19),(12,9,19),(13,9,19),(14,9,19),(15,9,19),(16,9,19)],
+     "agents": [{"x":-4,"y":4,"dx":1,"dy":0,"team":0}]},
+)
+_LAYERED_FACTORY = len(LEVELS) - 1
+
+# 3-agent frame (from user): R=TL Y=TR B=Rp pk=16 — room escape / trust the timeline
+LEVELS += (
+    {"cells": [(1,0,6),(2,0,6),(3,0,6),(4,0,6),(5,0,6),(6,0,6),(7,0,6),(8,0,6),(9,0,6),
+               (1,1,(3,2)),(2,1,(3,1)),(3,1,(3,1)),(4,1,(3,1)),(5,1,(3,1)),(6,1,(3,1)),(7,1,(3,1)),(8,1,(3,1)),(9,1,(3,1)),(10,1,(3,2)),(11,1,6),
+               (10,2,(3,1)),(11,2,6),(10,3,1),(11,3,6),
+               (0,4,6),(1,4,2),(4,4,3),(5,4,1),(9,4,3),(10,4,2),(11,4,6),
+               (0,5,6),(1,5,1),(10,5,(3,1)),(11,5,6),
+               (0,6,6),(1,6,(3,1)),(10,6,(3,1)),(11,6,6),
+               (0,7,6),(1,7,(3,1)),(10,7,(3,1)),(11,7,6),
+               (0,8,6),(1,8,(3,1)),(10,8,(3,1)),(11,8,6),
+               (0,9,6),(1,9,(3,1)),(10,9,(3,1)),(11,9,6),
+               (0,10,6),(1,10,(3,1)),(10,10,(3,1)),(11,10,6),
+               (0,11,6),(1,11,(3,2)),(2,11,(3,1)),(3,11,(3,1)),(4,11,(3,1)),(5,11,(3,1)),(6,11,(3,1)),(7,11,(3,1)),(8,11,(3,1)),(10,11,(3,1)),(11,11,6),
+               (2,12,6),(3,12,6),(4,12,6),(5,12,6),(6,12,6),(7,12,6),(8,12,6),(10,12,6)],
+     "agents": [{"x":5,"y":5,"dx":0,"dy":-1,"team":0},
+                {"x":-12,"y":4,"dx":1,"dy":0,"team":1},
+                {"x":9,"y":11,"dx":-1,"dy":0,"team":2}]},
+)
+_3AGENT_FRAME = len(LEVELS) - 1
+
 # ── campaign order: curated selection from all levels ──
 # Indices into the full LEVELS list above. The "album" from the "songbook."
 
 # Count levels just added
 _N = len(LEVELS)
-_R8 = _N - 1              # the Replic8 level (figure-8)
-_SURROUNDED = _R8 - 1     # "Surrounded" 5-color aha
-_SWAP_START = _SURROUNDED - 3    # 3 dense swap levels
-_PINGPONG = _SWAP_START - 1      # ping-pong (introduces reverse)
-_CROSS_REWARD = _PINGPONG - 1    # expanded cross-junction reward
+_SPIRAL_REV = _N - 1           # spiral reverse
+_DIAG_SCATTER = _N - 2         # diagonal scatter
+_DUAL_HAND = _N - 3            # hand-designed dual-constraint
+_R8 = _DUAL_HAND - 1           # the Replic8 level (figure-8)
+_SURROUNDED = _R8 - 1          # "Surrounded" 5-color aha
+_SWAP_START = _SURROUNDED - 3  # 3 dense swap levels
+_PINGPONG = _SWAP_START - 1    # ping-pong (introduces reverse)
+_CROSS_REWARD = _PINGPONG - 1  # expanded cross-junction reward
 _CROSS_HAND = _CROSS_REWARD - 1  # hand-designed cross-junction
-_MAND_START = _CROSS_HAND - 2    # 2 mandala levels
-_TP_START = _MAND_START - 3      # 3 teleport levels
-_4C_START = _TP_START - 4        # 4 four-color levels
+_MAND_START = _CROSS_HAND - 2  # 2 mandala levels
+_TP_START = _MAND_START - 3    # 3 teleport levels
+_4C_START = _TP_START - 4      # 4 four-color levels
+
+# Triple sandwich intro (from user): R=TR Y=TL B=P T=D pk=1 t=85
+# Mirrored L-frames with B/R/T triple sandwich at junction
+LEVELS += (
+    {"cells": [(0,0,1),(8,0,1),(0,1,3),(1,1,1),(2,1,3),(6,1,3),(7,1,1),(8,1,3),
+               (0,2,3),(1,2,3),(7,2,3),(8,2,3),(0,3,1),(1,3,3),(2,3,(3,1,19)),(6,3,1),(7,3,3),(8,3,3),
+               (0,6,1),(1,6,(2,1)),(2,6,2),(0,7,3),(1,7,3),(2,7,1),(6,7,1),(7,7,3),(8,7,3),
+               (0,8,3),(1,8,3),(7,8,3),(8,8,3),(0,9,3),(1,9,1),(2,9,3),(6,9,3),(7,9,1),(8,9,3),(0,10,1),(8,10,1)],
+     "agents": [{"x":3,"y":3,"dx":-1,"dy":0,"team":0}]},
+)
+_TRIPLE_SANDWICH = len(LEVELS) - 1
+
+# Symmetric factory (from user): R=TL B=TR Pk=Rp T=D pk=13 t=73
+# Pink replicate rows feed into repeating R/Pk/B grid, teal dissolve rows at edges
+LEVELS += (
+    {"cells": [(10,0,19),(11,0,19),(12,0,19),(13,0,19),(14,0,19),(15,0,19),(16,0,19),(17,0,19),
+               (0,2,3),(1,2,3),(2,2,3),(3,2,3),(5,2,18),(6,2,18),(7,2,18),(8,2,18),(10,2,1),(11,2,1),(12,2,1),(13,2,1),(14,2,1),(15,2,1),(16,2,1),(17,2,1),
+               (0,5,3),(1,5,3),(2,5,3),(3,5,3),(5,5,1),(9,5,1),(13,5,1),(17,5,1),
+               (4,6,18),(5,6,1),(6,6,18),(7,6,3),(8,6,18),(9,6,1),(10,6,18),(11,6,3),(12,6,18),(13,6,1),(14,6,18),(15,6,3),(16,6,18),(17,6,1),(18,6,18),(19,6,3),(21,6,6),
+               (0,7,1),(1,7,1),(2,7,1),(3,7,1),(7,7,3),(11,7,3),(15,7,3),(19,7,3),
+               (0,10,1),(1,10,1),(2,10,1),(3,10,1),(5,10,18),(6,10,18),(7,10,18),(8,10,18),(10,10,3),(11,10,3),(12,10,3),(13,10,3),(14,10,3),(15,10,3),(16,10,3),(17,10,3),
+               (10,12,19),(11,12,19),(12,12,19),(13,12,19),(14,12,19),(15,12,19),(16,12,19),(17,12,19)],
+     "agents": [{"x":2,"y":6,"dx":1,"dy":0,"team":0}]},
+)
+_SYM_FACTORY = len(LEVELS) - 1
+
+# ── External levels loader ──
+# Load additional levels from levels.txt (one TGUSF1-... code per line)
+# This allows hot-swapping community levels without editing app.py
+_COMMUNITY_LEVELS_START = len(LEVELS)
+_levels_txt = os.path.join(os.path.dirname(__file__), "levels.txt")
+if os.path.exists(_levels_txt):
+    with open(_levels_txt) as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if _line and _line.startswith("TGUSF1-"):
+                _lev = deserialize_level(_line)
+                if _lev:
+                    LEVELS += (_lev,)
+_COMMUNITY_LEVELS_END = len(LEVELS)
+_N_COMMUNITY = _COMMUNITY_LEVELS_END - _COMMUNITY_LEVELS_START
 
 CAMPAIGN_ORDER = [
-    # Act 1: Tutorial (7)
-    0, 1, 2, 3, 4, 5, 6,
-    # Act 2: 2D + Grey (5)
-    8, 10, 11, 12, 14,
-    # Act 3: Advanced (6)
-    15, 16, 18, 20, 23, 33,
-    # Act 4: Multi-agent (6)
-    47, 48, 54, 55, 56, 76,
-    # Act 5: Devilish (4)
-    79, 80, 81, 82,
-    # Act 6: No-Pass (6)
-    83, 84, 85, 86, 87, 88,
-    # Act 7: 4-color + Ping-Pong intro to reverse (5)
-    _4C_START, _4C_START+1, _4C_START+2, _4C_START+3,
+    # Act 1: Tutorial (5) — learn pass, dissolve, turns on simple tapes
+    0, 1, 2, 3, 5,
+    # Act 2: 2D + Grey + Triple sandwich (5) — turns in 2D, sandwich intro
+    8, 10, 11, _TRIPLE_SANDWICH, 14,
+    # Act 3: Advanced (5) — fractals, sandwiches, key puzzles
+    15, 16, 18, 20, 23,
+    # Act 4: Multi-agent (4) — two agents, per-agent rules
+    47, 48, 54, 55,
+    # Act 5: Devilish + No-Pass (4) — traps, forced replicate
+    79, 81, 83, 85,
+    # Act 6: 4-color + Reverse (4) — new mechanics
+    _4C_START, _4C_START+1, _4C_START+3,
     _PINGPONG,
     # Act 8: Teleport (3)
     _TP_START, _TP_START+1, _TP_START+2,
@@ -1195,13 +1377,40 @@ CAMPAIGN_ORDER = [
     _CROSS_HAND, _CROSS_REWARD,
     # Act 11: Dense swap (3) — agent replicates, child drops to parallel path
     _SWAP_START, _SWAP_START+1, _SWAP_START+2,
-    # Act 12: Surrounded — 5-color "aha" (everything you knew is wrong)
+    # Act 12: Dual-constraint (3) — two shapes, shared rules, 1 solution
+    _DUAL_HAND, _DIAG_SCATTER, _DUAL_PATH_NEW,
+    # Act 13: Spectacle levels — consecutive replicate fan-out + layered factory + symmetric factory
+    _SPIRAL_GEN, _LAYERED_FACTORY, _SYM_FACTORY,
+    # Act 14: 3-agent frame — room escape, trust the timeline, pk=16
+    _3AGENT_FRAME,
+    # Act 15: Surrounded — 5-color "aha" (everything you knew is wrong)
     _SURROUNDED,
+    # Act 16: Spiral reverse — combines reverse + replication
+    _SPIRAL_REV,
     # Finale: The Replic8
     _R8,
 ]
 
 CAMPAIGN = [LEVELS[i] for i in CAMPAIGN_ORDER if i < len(LEVELS)]
+
+# ── load external levels from levels.txt ──
+_LEVELS_TXT = os.path.join(os.path.dirname(__file__), "levels.txt")
+
+def _load_external_levels():
+    """Load level codes from levels.txt, return list of level dicts."""
+    # import deserialize here to avoid circular dependency — it's defined below
+    # so we call this lazily from main()
+    ext = []
+    if os.path.exists(_LEVELS_TXT):
+        with open(_LEVELS_TXT) as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if line.startswith("TGUSF1-"):
+                    ext.append(line)
+    return ext
+
 NUM_LEVELS = len(CAMPAIGN)
 
 _ALL_LEVELS = LEVELS  # keep full list for editor
@@ -1372,7 +1581,8 @@ def grid_to_level(grid, agents, underneath):
 def check_solvable(level, max_teams=1):
     """Brute-force check: does any verb assignment give a perfect solution?"""
     from itertools import product as iprod
-    verbs_range = [VERB_PASS, VERB_REPLICATE, VERB_DISSOLVE, VERB_TURN_LEFT, VERB_TURN_RIGHT]
+    verbs_range = [VERB_PASS, VERB_REPLICATE, VERB_DISSOLVE, VERB_TURN_LEFT, VERB_TURN_RIGHT,
+                   VERB_REVERSE, VERB_SKIP, VERB_WAIT]
 
     if max_teams == 1:
         combos = iprod(verbs_range, repeat=3)
@@ -1393,7 +1603,7 @@ def check_solvable(level, max_teams=1):
         for _ in range(MAX_STEPS):
             if not ag or count_walls(g, und) == 0:
                 break
-            ag, _ = sim_step(ag, g, vl, und)
+            ag, _, _ = sim_step(ag, g, vl, und)
 
         if count_walls(g, und) == 0 and len(ag) == 0:
             solutions += 1
@@ -1405,24 +1615,29 @@ def check_solvable(level, max_teams=1):
 # ── editor ──
 
 EDITOR_PALETTE = [
+    # assignable colors (player sets the verb)
     (WALL_RED,         "Red"),
     (WALL_YELLOW,      "Yellow"),
     (WALL_BLUE,        "Blue"),
+    (WALL_PINK,        "Pink"),
+    (WALL_TEAL,        "Teal"),
+    # fixed cells (always do one thing)
     (FIXED_PASS,       "Grey (pass)"),
     (FIXED_REPLICATE,  "Green (replicate)"),
     (FIXED_DISSOLVE,   "Purple (dissolve)"),
-    (FIXED_TURN_RIGHT, "Orange (turn R)"),
-    (FIXED_TURN_LEFT,  "Cyan (turn L)"),
-    (WALL_PINK,        "Pink (assign)"),
-    (WALL_TEAL,        "Teal (assign)"),
+    (FIXED_TURN_RIGHT, "Turn R"),
+    (FIXED_TURN_LEFT,  "Turn L"),
     (FIXED_REVERSE,    "Reverse"),
     (FIXED_SKIP,       "Skip"),
-    (FIXED_ONE_WAY_R,  "Gate right"),
-    (FIXED_ONE_WAY_D,  "Gate down"),
-    (FIXED_ONE_WAY_L,  "Gate left"),
-    (FIXED_ONE_WAY_U,  "Gate up"),
-    (FIXED_TELEPORT_A, "Teleport in"),
-    (FIXED_TELEPORT_B, "Teleport out"),
+    # teleport pairs (same hue, dark=in light=out)
+    (TELE_IN_1, "Tele 1 In"),
+    (TELE_OUT_1, "Tele 1 Out"),
+    (TELE_IN_2, "Tele 2 In"),
+    (TELE_OUT_2, "Tele 2 Out"),
+    (TELE_IN_3, "Tele 3 In"),
+    (TELE_OUT_3, "Tele 3 Out"),
+    (TELE_IN_4, "Tele 4 In"),
+    (TELE_OUT_4, "Tele 4 Out"),
 ]
 
 EDITOR_BG = (30, 30, 42)
@@ -1714,6 +1929,11 @@ def sim_step(agents, grid, verbs_list, underneath, evil_rules=None):
     Collision rule: agent moving into occupied cell bounces (reverses).
     Two agents moving into same empty cell: both bounce."""
     new_agents = []
+    consumed_count = 0
+    dissolved_count = 0
+    turned_count = 0
+    reversed_count = 0
+    teleported_count = 0
 
     # ── phase 1: compute intended destinations ──
     intents = []  # (agent, action_type, dest_x, dest_y, wall_info)
@@ -1752,35 +1972,12 @@ def sim_step(agents, grid, verbs_list, underneath, evil_rules=None):
                 # pass, turn_left, turn_right, reverse, wait — all move to nx,ny
                 intents.append((a, "wall_move", nx, ny, info))
         elif target == AGENT:
-            # check if the occupant is moving TOWARD us (head-on) → bounce
-            # otherwise just block (wait in place)
-            occupant = None
-            for other in agents:
-                if other["alive"] and other["x"] == nx and other["y"] == ny:
-                    occupant = other
-                    break
-            if occupant and occupant["dx"] == -dx and occupant["dy"] == -dy:
-                # head-on: both coming at each other → bounce
-                intents.append((a, "bounce", x, y, None))
-            else:
-                # rear-end or perpendicular into stationary → just block
-                intents.append((a, "stuck", x, y, None))
+            # always block — agents form stacks, pop one at a time
+            intents.append((a, "stuck", x, y, None))
         else:
             intents.append((a, "stuck", x, y, None))
 
-    # ── phase 2: detect move conflicts ──
-    # find cells that multiple agents want to move INTO the same empty cell
-    dest_claims = {}  # (dx,dy) → [index into intents]
-    for i, (a, action, dx, dy, info) in enumerate(intents):
-        if action in ("move", "wall_move", "skip", "skip_short"):
-            dest_claims.setdefault((dx, dy), []).append(i)
-
-    # if two+ agents claim the same destination, all bounce
-    for pos, claimants in dest_claims.items():
-        if len(claimants) > 1:
-            for idx in claimants:
-                a, action, _, _, info = intents[idx]
-                intents[idx] = (a, "bounce", a["x"], a["y"], None)
+    # ── phase 2: agents pass through each other, no collision detection needed ──
 
     # ── phase 3: execute ──
     for a, action, dest_x, dest_y, info in intents:
@@ -1797,11 +1994,12 @@ def sim_step(agents, grid, verbs_list, underneath, evil_rules=None):
             grid[dest_y][dest_x] = AGENT
 
         elif action == "bounce":
-            # reverse direction, stay in place
-            a["dx"], a["dy"] = -a["dx"], -a["dy"]
+            pass
 
         elif action == "dissolve":
+            dissolved_count += 1
             a["alive"] = False
+            a["rev_count"] = 0
             vacate(x, y, grid, underneath)
             if info["has_remaining"]:
                 rem = info["remaining"]
@@ -1810,7 +2008,9 @@ def sim_step(agents, grid, verbs_list, underneath, evil_rules=None):
                 grid[ny][nx] = EMPTY
 
         elif action == "replicate":
-            child = {"x": nx, "y": ny, "dx": dx, "dy": dy, "alive": True, "team": a.get("team", 0), "evil": a.get("evil", False)}
+            consumed_count += 1
+            child = {"x": nx, "y": ny, "dx": dx, "dy": dy, "alive": True,
+                     "team": a.get("team", 0), "evil": a.get("evil", False)}
             new_agents.append(child)
             if info["has_remaining"]:
                 occupy(nx, ny, grid, underneath, info["remaining"])
@@ -1818,16 +2018,29 @@ def sim_step(agents, grid, verbs_list, underneath, evil_rules=None):
                 grid[ny][nx] = AGENT
 
         elif action in ("wall_move", "skip_short"):
+            consumed_count += 1
             verb = info["verb"]
             vacate(x, y, grid, underneath)
             a["x"], a["y"] = nx, ny
 
             if verb == VERB_TURN_LEFT:
                 a["dx"], a["dy"] = turn_left(dx, dy)
+                a["rev_count"] = 0
+                turned_count += 1
             elif verb == VERB_TURN_RIGHT:
                 a["dx"], a["dy"] = turn_right(dx, dy)
+                a["rev_count"] = 0
+                turned_count += 1
             elif verb == VERB_REVERSE:
-                a["dx"], a["dy"] = -dx, -dy
+                # cap consecutive reverses: if reversed 2+ times in a row, pass through instead
+                rev_count = a.get("rev_count", 0) + 1
+                if rev_count >= 3:
+                    # treat as pass — don't reverse, just walk through
+                    a["rev_count"] = 0
+                else:
+                    a["dx"], a["dy"] = -dx, -dy
+                    a["rev_count"] = rev_count
+                    reversed_count += 1
             elif verb == VERB_WAIT:
                 # stay in place, consume cell, don't move
                 a["x"], a["y"] = x, y
@@ -1857,8 +2070,8 @@ def sim_step(agents, grid, verbs_list, underneath, evil_rules=None):
                 grid[ny][nx] = EMPTY
 
         # teleport handling (after wall actions)
-        if info and (info["top"] == FIXED_TELEPORT_A or info["top"] == FIXED_TELEPORT_B):
-            pair = FIXED_TELEPORT_B if info["top"] == FIXED_TELEPORT_A else FIXED_TELEPORT_A
+        if action in ("wall_move", "replicate", "dissolve", "skip", "skip_short") and info and info.get("top") in TELE_PAIRS:
+            pair = TELE_PAIRS[info["top"]]
             for ty in range(GRID_H):
                 for tx in range(GRID_W):
                     tc = grid[ty][tx]
@@ -1867,6 +2080,7 @@ def sim_step(agents, grid, verbs_list, underneath, evil_rules=None):
                     elif isinstance(tc, tuple) and pair in tc: found_pair = True
                     elif (tx, ty) in underneath and pair in underneath[(tx, ty)]: found_pair = True
                     if found_pair:
+                        teleported_count += 1
                         vacate(a["x"], a["y"], grid, underneath)
                         if info["has_remaining"]:
                             grid[ny][nx] = info["remaining"] if not isinstance(info["remaining"], tuple) else info["remaining"]
@@ -1893,7 +2107,10 @@ def sim_step(agents, grid, verbs_list, underneath, evil_rules=None):
         spawned += 1
 
     alive = [a for a in agents if a["alive"]]
-    return alive, spawned
+    events = {"consumed": consumed_count, "dissolved": dissolved_count,
+              "replicated": spawned, "turned": turned_count,
+              "reversed": reversed_count, "teleported": teleported_count}
+    return alive, spawned, events
 
 
 def in_bounds(x, y):
@@ -1917,11 +2134,21 @@ def draw_cell(screen, rx, ry, cell):
             # dividing line between same-color adjacent layers
             if i > 0 and cell[i] == cell[i-1]:
                 div_y = ry + 1 + (inner_h * i) // n
-                pygame.draw.line(screen, (30, 30, 40), (rx + 2, div_y), (rx + CELL - 3, div_y))
+                pygame.draw.line(screen, (0, 0, 0), (rx + 1, div_y), (rx + CELL - 2, div_y))
+                pygame.draw.line(screen, (255, 255, 255, 80), (rx + 2, div_y), (rx + CELL - 3, div_y))
     elif cell in WCOLOR:
         pygame.draw.rect(screen, WCOLOR[cell], (rx+1, ry+1, CELL-2, CELL-2))
         if cell in FIXED_TYPES:
             pygame.draw.rect(screen, (255,255,255), (rx+4, ry+4, CELL-8, CELL-8), 1)
+        # fixed turn: draw "L" or "R" centered
+        if cell == FIXED_TURN_LEFT:
+            lbl_font = pygame.font.SysFont("consolas", 12, bold=True)
+            lbl = lbl_font.render("L", True, (255, 255, 255))
+            screen.blit(lbl, (rx + (CELL - lbl.get_width()) // 2, ry + (CELL - lbl.get_height()) // 2))
+        elif cell == FIXED_TURN_RIGHT:
+            lbl_font = pygame.font.SysFont("consolas", 12, bold=True)
+            lbl = lbl_font.render("R", True, (255, 255, 255))
+            screen.blit(lbl, (rx + (CELL - lbl.get_width()) // 2, ry + (CELL - lbl.get_height()) // 2))
         # one-way gate: draw direction arrow
         if cell in ONE_WAY_TYPES:
             cx, cy = rx + CELL // 2, ry + CELL // 2
@@ -1930,15 +2157,20 @@ def draw_cell(screen, rx, ry, cell):
             base1 = (cx - d[0] * 3 + d[1] * 3, cy - d[1] * 3 + d[0] * 3)
             base2 = (cx - d[0] * 3 - d[1] * 3, cy - d[1] * 3 - d[0] * 3)
             pygame.draw.polygon(screen, (40, 40, 50), [tip, base1, base2])
-        # teleport: distinct markers — A=hollow ring, B=filled dot + ring
-        elif cell == FIXED_TELEPORT_A:
-            cx, cy = rx + CELL//2, ry + CELL//2
-            pygame.draw.circle(screen, (255, 255, 255), (cx, cy), 5, 2)
-            pygame.draw.circle(screen, (255, 255, 255), (cx, cy), 2, 1)
-        elif cell == FIXED_TELEPORT_B:
-            cx, cy = rx + CELL//2, ry + CELL//2
-            pygame.draw.circle(screen, (255, 255, 255), (cx, cy), 5, 2)
-            pygame.draw.circle(screen, (255, 255, 255), (cx, cy), 2)
+        # teleport: big centered pair number, dark=in light=out (same hue)
+        elif cell in ALL_TELE_TYPES:
+            tele_ins = [TELE_IN_1, TELE_IN_2, TELE_IN_3, TELE_IN_4]
+            tele_outs = [TELE_OUT_1, TELE_OUT_2, TELE_OUT_3, TELE_OUT_4]
+            if cell in tele_ins:
+                pair_num = tele_ins.index(cell) + 1
+            else:
+                pair_num = tele_outs.index(cell) + 1
+            # big centered number
+            num_font = pygame.font.SysFont("consolas", 14, bold=True)
+            num_surf = num_font.render(str(pair_num), True, (255, 255, 255))
+            nx = rx + (CELL - num_surf.get_width()) // 2
+            ny = ry + (CELL - num_surf.get_height()) // 2
+            screen.blit(num_surf, (nx, ny))
         # reverse: draw double-headed arrow
         elif cell == FIXED_REVERSE:
             cx, cy = rx + CELL // 2, ry + CELL // 2
@@ -1989,6 +2221,23 @@ def draw_grid(screen, grid, agents, underneath):
         tip_x = cx + a["dx"] * (CELL // 4)
         tip_y = cy + a["dy"] * (CELL // 4)
         pygame.draw.circle(screen, (255, 255, 255), (tip_x, tip_y), 3)
+
+    # draw stack badges (×N) for positions with multiple agents
+    pos_counts = {}
+    for a in agents:
+        if not a["alive"]:
+            continue
+        key = (a["x"], a["y"])
+        pos_counts[key] = pos_counts.get(key, 0) + 1
+    badge_font = pygame.font.SysFont("consolas", 10, bold=True)
+    for (px, py), count in pos_counts.items():
+        if count > 1:
+            bx = px * CELL + CELL - 8
+            by = py * CELL
+            badge = badge_font.render(f"×{count}", True, (255, 255, 255))
+            # dark background for readability
+            pygame.draw.rect(screen, (30, 30, 40), (bx - 1, by, badge.get_width() + 2, badge.get_height()))
+            screen.blit(badge, (bx, by))
 
 
 def draw_preview_cell(screen, rx, ry, cell, pc):
@@ -2132,7 +2381,11 @@ def draw_panel(screen, font, font_sm, verbs_list, active_team, n_teams, step, ag
         screen.blit(font_sm.render("E=back to editor  ESC=editor", True, (255, 200, 80)), (px + 12, y + 15))
     else:
         screen.blit(font_sm.render("N next   P prev   ESC quit", True, TEXT_DIM), (px + 12, y + 15))
-    y += 36
+    if paused and step > 0:
+        screen.blit(font_sm.render("<< >>  step frame by frame", True, (150, 180, 220)), (px + 12, y + 30))
+        y += 48
+    else:
+        y += 36
 
     level = LEVELS[level_idx % NUM_LEVELS]
     screen.blit(font_sm.render("SHAPE:", True, TEXT_COLOR), (px + 12, y))
@@ -2317,9 +2570,20 @@ def draw_title_screen(screen, font, font_sm, font_lg, mouse_pos, tick):
         screen.blit(txt, (cx - txt.get_width() // 2, by + 10))
         btn_rects.append((bx, by, bw, bh, action))
 
+    # community call to action
+    cta_lines = [
+        "Design levels in the editor (E) and share codes on Discord!",
+        "Best community levels get included — designers get free Steam copy.",
+    ]
+    cta_y = WIN_H - 70
+    for cta_line in cta_lines:
+        cta = font_sm.render(cta_line, True, (70, 90, 110))
+        screen.blit(cta, (cx - cta.get_width() // 2, cta_y))
+        cta_y += 16
+
     # version
     ver = font_sm.render("v1.0 — Press E for editor anytime", True, (60, 60, 70))
-    screen.blit(ver, (cx - ver.get_width() // 2, WIN_H - 40))
+    screen.blit(ver, (cx - ver.get_width() // 2, WIN_H - 30))
 
     return btn_rects
 
@@ -2470,7 +2734,7 @@ def draw_level_select(screen, font, font_sm, stars, mouse_pos, scroll_y,
     return btn_rects, tab_rects, action_rects
 
 
-def draw_settings_screen(screen, font, font_sm, sim_speed, show_gridlines, mouse_pos):
+def draw_settings_screen(screen, font, font_sm, sim_speed, show_gridlines, mouse_pos, sound_on=True):
     screen.fill(BG)
     cx = WIN_W // 2
 
@@ -2506,6 +2770,20 @@ def draw_settings_screen(screen, font, font_sm, sim_speed, show_gridlines, mouse
         txt = font_sm.render(label, True, (0, 0, 0) if active else TEXT_COLOR)
         screen.blit(txt, (bx + bw // 2 - txt.get_width() // 2, y + 7))
         btn_rects.append((bx, y, bw, bh, ("gridlines", i == 1)))
+    y += 55
+
+    # sound
+    screen.blit(font_sm.render("Sound:", True, TEXT_DIM), (cx - 140, y))
+    for i, label in enumerate(["Off", "On"]):
+        bw2, bh2 = 80, 30
+        bx2 = cx - 140 + 100 + i * (bw2 + 10)
+        hovered = bx2 <= mouse_pos[0] < bx2 + bw2 and y <= mouse_pos[1] < y + bh2
+        active = (i == 1) == sound_on
+        bg = (80, 180, 100) if active else (55, 55, 70) if hovered else (40, 40, 52)
+        pygame.draw.rect(screen, bg, (bx2, y, bw2, bh2), border_radius=4)
+        txt = font_sm.render(label, True, (0, 0, 0) if active else TEXT_COLOR)
+        screen.blit(txt, (bx2 + bw2 // 2 - txt.get_width() // 2, y + 7))
+        btn_rects.append((bx2, y, bw2, bh2, ("sound", i == 1)))
     y += 55
 
     # reset progress
@@ -2578,7 +2856,9 @@ def calc_stars(walls_left, agents_alive, step, level):
 
 # ── main ──
 
-def main():
+async def main():
+    global LEVELS, NUM_LEVELS
+
     pygame.init()
     screen = pygame.display.set_mode((WIN_W, WIN_H))
     pygame.display.set_caption("Replic8")
@@ -2586,6 +2866,34 @@ def main():
     font    = pygame.font.SysFont("consolas", 15)
     font_sm = pygame.font.SysFont("consolas", 13)
     font_lg = pygame.font.SysFont("consolas", 26, bold=True)
+
+    # ── sound ──
+    sounds = None
+    if _HAS_SOUND:
+        try:
+            sounds = GameSounds()
+        except Exception:
+            sounds = None
+
+    # ── load external levels from levels.txt ──
+    ext_codes = _load_external_levels()
+    ext_levels = []
+    for code in ext_codes:
+        lev = deserialize_level(code)
+        if lev:
+            ext_levels.append(lev)
+    if ext_levels:
+        LEVELS = list(LEVELS) + ext_levels
+        NUM_LEVELS = len(LEVELS)
+
+    # ── sound ──
+    sounds = None
+    if _HAS_SOUND:
+        try:
+            sounds = GameSounds()
+        except Exception as e:
+            print(f"Sound init failed: {e}")
+            sounds = None
 
     # ── screen state ──
     screen_mode = "title"  # "title" | "play" | "level_select" | "settings"
@@ -2647,6 +2955,32 @@ def main():
     btn_hit_rects = []
     tab_hit_rects = []
 
+    history = []  # list of (grid_copy, agents_copy, underneath_copy) snapshots
+    MAX_HISTORY = 500
+
+    def save_snapshot():
+        """Save current state for rewind."""
+        import copy
+        snap = (copy.deepcopy(grid), copy.deepcopy(agents), copy.deepcopy(underneath))
+        history.append(snap)
+        if len(history) > MAX_HISTORY:
+            history.pop(0)
+
+    def restore_snapshot(idx):
+        """Restore state from history."""
+        nonlocal grid, agents, underneath, step, total_spawned, peak_pop
+        import copy
+        g, ag, und = history[idx]
+        grid[:] = copy.deepcopy(g)
+        agents.clear()
+        agents.extend(copy.deepcopy(ag))
+        underneath.clear()
+        underneath.update(copy.deepcopy(und))
+        step = idx
+        # recalc stats
+        total_spawned = max(len(agents), 1)
+        peak_pop = max(len(agents), 1)
+
     def reset_level():
         nonlocal grid, agents, underneath, walls_start, paused, step, total_spawned, peak_pop, place_agent_pos
         level = LEVELS[level_idx % NUM_LEVELS]
@@ -2675,6 +3009,8 @@ def main():
         step = 0
         total_spawned = max(len(agents), 1)
         peak_pop = max(len(agents), 1)
+        history.clear()
+        save_snapshot()  # save initial state as step 0
 
     def change_level(new_idx):
         nonlocal level_idx, verbs_list, active_team, screen_mode
@@ -3089,6 +3425,32 @@ def main():
                     else:
                         if event.key == pygame.K_SPACE:
                             paused = not paused
+                            if sounds and not paused:
+                                sounds.play_start()
+                        elif event.key == pygame.K_RIGHT and paused:
+                            # step forward one tick
+                            if step < len(history) - 1:
+                                # we have a future snapshot (rewound earlier)
+                                restore_snapshot(step + 1)
+                            else:
+                                # run one sim tick
+                                cur_level = LEVELS[level_idx % NUM_LEVELS]
+                                cur_evil = cur_level.get("evil_rules")
+                                wl = count_walls(grid, underneath)
+                                go = (wl > 0) and (len(agents) > 0 or step == 0) and (step < MAX_STEPS)
+                                if go:
+                                    agents, spawned, sim_events = sim_step(agents, grid, verbs_list, underneath, cur_evil)
+                                    step += 1
+                                    total_spawned += spawned
+                                    if len(agents) > peak_pop:
+                                        peak_pop = len(agents)
+                                    save_snapshot()
+                                    if sounds and sim_events["consumed"] > 0:
+                                        sounds.play_consume()
+                        elif event.key == pygame.K_LEFT and paused:
+                            # step backward one tick
+                            if step > 0 and len(history) > 1:
+                                restore_snapshot(step - 1)
                         elif event.key == pygame.K_r:
                             if testing_editor_level:
                                 reset_test_level()
@@ -3186,6 +3548,9 @@ def main():
                                 sim_speed = val
                             elif key == "gridlines":
                                 show_gridlines = val
+                            elif key == "sound":
+                                if sounds:
+                                    sounds.enabled = val
                             elif key == "reset":
                                 stars = [0] * NUM_LEVELS
                                 save_progress(stars, sim_speed, show_gridlines, community_packs)
@@ -3319,6 +3684,8 @@ def main():
                             if bx <= mouse_pos[0] < bx + bw and by <= mouse_pos[1] < by + bh:
                                 disabled = get_disabled_verbs(LEVELS[level_idx % NUM_LEVELS]).get(wall_type, [])
                                 verbs_list[active_team][wall_type] = cycle_verb(verbs_list[active_team][wall_type], disabled)
+                                if sounds:
+                                    sounds.play_click()
                                 break
 
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
@@ -3360,11 +3727,44 @@ def main():
 
             if not paused and not game_over and now - last_sim_tick >= tick_ms:
                 last_sim_tick = now
-                agents, spawned = sim_step(agents, grid, verbs_list, underneath, cur_evil_rules)
+                prev_walls = count_walls(grid, underneath)
+                prev_agents = len(agents)
+                agents, spawned, sim_events = sim_step(agents, grid, verbs_list, underneath, cur_evil_rules)
                 step += 1
                 total_spawned += spawned
                 if len(agents) > peak_pop:
                     peak_pop = len(agents)
+                save_snapshot()
+
+                # sound events
+                if sounds:
+                    if sim_events["consumed"] > 0:
+                        sounds.play_consume()
+                    if sim_events["dissolved"] > 0:
+                        sounds.play_dissolve()
+                    if sim_events["replicated"] > 0:
+                        sounds.play_replicate()
+                    if sim_events["turned"] > 0:
+                        sounds.play_turn()
+                    if sim_events["reversed"] > 0:
+                        sounds.play_reverse()
+                    if sim_events["teleported"] > 0:
+                        sounds.play_teleport()
+
+                # (event-based sounds already played above from sim_events)
+
+            # sound for game end
+            if sounds and game_over and step > 0 and not getattr(main, '_end_played', False):
+                walls_left_now = count_walls(grid, underneath)
+                if walls_left_now == 0 and len(agents) == 0:
+                    sounds.play_perfect()
+                elif walls_left_now == 0:
+                    sounds.play_level_complete()
+                else:
+                    sounds.play_fail()
+                main._end_played = True
+            if not game_over:
+                main._end_played = False
 
         # ── draw ──
         if screen_mode == "title":
@@ -3376,7 +3776,8 @@ def main():
                 level_select_tab, community_packs, pack_idx)
 
         elif screen_mode == "settings":
-            settings_rects = draw_settings_screen(screen, font, font_sm, sim_speed, show_gridlines, mouse_pos)
+            sound_on = sounds.enabled if sounds else False
+            settings_rects = draw_settings_screen(screen, font, font_sm, sim_speed, show_gridlines, mouse_pos, sound_on)
 
         elif screen_mode == "play":
             screen.fill(BG)
@@ -3468,10 +3869,10 @@ def main():
 
         pygame.display.flip()
         clock.tick(FPS)
+        await asyncio.sleep(0)  # yield control for pygbag
 
     pygame.quit()
-    sys.exit()
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
