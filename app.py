@@ -1065,7 +1065,7 @@ LEVELS += [
                 {"x":0,"y":0,"dx":0,"dy":-1,"team":3}]},
 ]
 
-# ── Phase 23: The Replic8 — signature level shaped like an 8 ──
+# ── Phase 23: The Dissip8 — signature level shaped like an 8 ──
 
 LEVELS.append(
     {"cells": [(1,0,Y),(2,0,W),(3,0,W),(4,0,W),(5,0,W),(6,0,Y),
@@ -1370,7 +1370,7 @@ _N = len(LEVELS)
 _SPIRAL_REV = _N - 1           # spiral reverse
 _DIAG_SCATTER = _N - 2         # diagonal scatter
 _DUAL_HAND = _N - 3            # hand-designed dual-constraint
-_R8 = _DUAL_HAND - 1           # the Replic8 level (figure-8)
+_R8 = _DUAL_HAND - 1           # the Dissip8 level (figure-8)
 _SURROUNDED = _R8 - 1          # "Surrounded" 5-color aha
 _SWAP_START = _SURROUNDED - 3  # 3 dense swap levels
 _PINGPONG = _SWAP_START - 1    # ping-pong (introduces reverse)
@@ -1423,6 +1423,28 @@ LEVELS += (
 )
 _GAUNTLET = len(LEVELS) - 1
 
+# ── Pingpong L36-L40 ──
+
+# L36: Big dual-agent grid (126c, 2ag, pk=5) R=P Y=D B=TR Pk=P T=TL
+LEVELS += ({"cells": [(2,0,19),(7,0,(19,3)),(12,0,3),(2,1,5),(7,1,5),(12,1,5),(0,2,3),(1,2,19),(2,2,(3,19,3)),(3,2,3),(4,2,2),(5,2,2),(6,2,19),(7,2,3),(8,2,3),(9,2,19),(10,2,3),(11,2,19),(12,2,(3,19,3)),(13,2,3),(14,2,2),(0,3,1),(1,3,1),(2,3,18),(3,3,1),(4,3,1),(5,3,18),(6,3,18),(7,3,1),(8,3,18),(9,3,18),(10,3,1),(11,3,1),(12,3,18),(13,3,1),(14,3,1),(0,4,1),(1,4,18),(2,4,18),(3,4,18),(4,4,1),(5,4,18),(6,4,1),(7,4,1),(8,4,1),(9,4,18),(10,4,1),(11,4,18),(12,4,18),(13,4,18),(14,4,1),(0,5,18),(1,5,18),(2,5,18),(3,5,18),(4,5,18),(5,5,1),(6,5,1),(7,5,1),(8,5,1),(9,5,1),(10,5,18),(11,5,18),(12,5,18),(13,5,18),(14,5,18),(0,6,1),(1,6,1),(2,6,1),(3,6,1),(4,6,1),(5,6,18),(6,6,18),(7,6,18),(8,6,18),(9,6,18),(10,6,1),(11,6,1),(12,6,1),(13,6,1),(14,6,1),(0,7,18),(1,7,1),(2,7,1),(3,7,1),(4,7,18),(5,7,1),(6,7,18),(7,7,18),(8,7,18),(9,7,1),(10,7,18),(11,7,1),(12,7,1),(13,7,1),(14,7,18),(0,8,18),(1,8,18),(2,8,1),(3,8,18),(4,8,18),(5,8,1),(6,8,1),(7,8,18),(8,8,1),(9,8,1),(10,8,18),(11,8,18),(12,8,1),(13,8,18),(14,8,18),(0,9,3),(1,9,3),(2,9,2),(3,9,19),(4,9,19),(5,9,3),(6,9,3),(7,9,1),(8,9,19),(9,9,19),(10,9,3),(11,9,3),(12,9,2),(13,9,19),(14,9,19)], "agents": [{"x":7,"y":10,"dx":0,"dy":-1,"team":0},{"x":7,"y":11,"dx":0,"dy":-1,"team":1}]},)
+_PP_L36 = len(LEVELS) - 1
+
+# L37: Concentric rings dual-agent (101c, 2ag, pk=3) Y=D R=P B=TL Pk=TR T=P
+LEVELS += ({"cells": [(0,0,2),(10,0,2),(0,1,19),(1,1,18),(2,1,1),(3,1,1),(4,1,1),(5,1,1),(6,1,1),(7,1,1),(8,1,1),(9,1,18),(10,1,19),(0,2,19),(1,2,1),(2,2,3),(3,2,19),(4,2,19),(5,2,19),(6,2,19),(7,2,19),(8,2,3),(9,2,1),(10,2,19),(0,3,19),(1,3,1),(2,3,19),(3,3,18),(4,3,1),(5,3,1),(6,3,1),(7,3,18),(8,3,19),(9,3,1),(10,3,19),(0,4,19),(1,4,1),(2,4,19),(3,4,1),(4,4,3),(5,4,19),(7,4,1),(8,4,19),(9,4,1),(10,4,19),(0,5,(3,18)),(1,5,1),(2,5,19),(3,5,1),(4,5,19),(5,5,5),(6,5,1),(7,5,18),(8,5,19),(9,5,1),(10,5,19),(0,6,19),(1,6,1),(2,6,19),(3,6,1),(4,6,3),(5,6,19),(6,6,19),(7,6,19),(8,6,3),(9,6,1),(10,6,19),(0,7,19),(1,7,1),(2,7,19),(3,7,18),(4,7,1),(5,7,1),(6,7,1),(7,7,1),(8,7,1),(9,7,18),(10,7,19),(0,8,19),(1,8,1),(2,8,3),(3,8,19),(4,8,19),(5,8,19),(6,8,19),(7,8,19),(8,8,19),(9,8,5),(10,8,(3,18)),(0,9,19),(1,9,18),(2,9,1),(3,9,1),(4,9,1),(5,9,1),(6,9,1),(7,9,1),(8,9,1),(9,9,1),(0,10,2),(10,10,2)], "agents": [{"x":10,"y":9,"dx":-1,"dy":0,"team":0},{"x":6,"y":4,"dx":-1,"dy":0,"team":1}]},)
+_PP_L37 = len(LEVELS) - 1
+
+# L38: Single agent field sweep (62c, 1ag, pk=3) R=TL Y=Rp B=TR Pk=P T=P
+LEVELS += ({"cells": [(0,0,2),(1,0,3),(9,0,(2,3)),(10,0,6),(1,1,18),(9,1,18),(1,2,18),(9,2,18),(1,3,1),(2,3,19),(3,3,19),(4,3,19),(5,3,19),(6,3,19),(7,3,19),(8,3,19),(9,3,(3,18)),(1,4,1),(2,4,19),(3,4,19),(4,4,19),(5,4,19),(6,4,19),(7,4,19),(8,4,19),(9,4,(3,18)),(1,5,1),(2,5,19),(3,5,19),(4,5,19),(5,5,19),(6,5,19),(7,5,19),(8,5,19),(9,5,(18,6)),(1,6,6),(2,6,19),(3,6,19),(4,6,19),(5,6,19),(6,6,19),(7,6,19),(8,6,19),(9,6,(18,1)),(1,7,3),(2,7,19),(3,7,19),(4,7,19),(5,7,19),(6,7,19),(7,7,19),(8,7,19),(9,7,(18,1)),(1,8,3),(2,8,18),(3,8,18),(4,8,18),(5,8,18),(6,8,18),(7,8,18),(8,8,18),(9,8,3)], "agents": [{"x":-1,"y":0,"dx":1,"dy":0,"team":0}]},)
+_PP_L38 = len(LEVELS) - 1
+
+# L39: Fractal pairs (60c, 1ag, pk=3) R=TL Y=TR B=P Pk=D T=Rp
+LEVELS += ({"cells": [(2,0,2),(3,0,2),(2,1,3),(3,1,3),(0,2,2),(1,2,3),(2,2,1),(3,2,1),(4,2,3),(5,2,18),(0,3,2),(1,3,3),(2,3,1),(3,3,1),(4,3,3),(5,3,(19,1)),(2,4,3),(3,4,3),(2,5,2),(3,5,2),(7,5,2),(8,5,2),(7,6,3),(8,6,3),(5,7,1),(6,7,3),(7,7,1),(8,7,1),(9,7,3),(10,7,2),(5,8,18),(6,8,3),(7,8,1),(8,8,1),(9,8,3),(10,8,(19,2)),(7,9,3),(8,9,3),(7,10,2),(8,10,2),(12,10,2),(13,10,2),(12,11,3),(13,11,3),(10,12,1),(11,12,3),(12,12,1),(13,12,1),(14,12,3),(15,12,2),(10,13,18),(11,13,3),(12,13,1),(13,13,1),(14,13,3),(15,13,2),(12,14,3),(13,14,3),(12,15,2),(13,15,2)], "agents": [{"x":6,"y":3,"dx":-1,"dy":0,"team":0}]},)
+_PP_L39 = len(LEVELS) - 1
+
+# L40: 4-agent compact (36c, 4ag, pk=4) R=D Y=D B=P Pk=TL T=TR
+LEVELS += ({"cells": [(0,0,3),(1,0,3),(6,0,3),(11,0,3),(12,0,19),(0,1,18),(1,1,3),(6,1,3),(11,1,3),(12,1,3),(0,4,18),(1,4,3),(4,4,3),(5,4,1),(7,4,2),(8,4,3),(11,4,3),(12,4,19),(0,5,19),(1,5,3),(4,5,3),(5,5,2),(7,5,1),(8,5,3),(11,5,3),(12,5,18),(0,8,3),(1,8,3),(6,8,3),(11,8,3),(12,8,18),(0,9,19),(1,9,3),(6,9,3),(11,9,3),(12,9,3)], "agents": [{"x":-1,"y":0,"dx":1,"dy":0,"team":0},{"x":13,"y":1,"dx":-1,"dy":0,"team":1},{"x":-1,"y":8,"dx":1,"dy":0,"team":2},{"x":13,"y":9,"dx":-1,"dy":0,"team":3}]},)
+_PP_L40 = len(LEVELS) - 1
+
 # ── Pingpong L28-L34 ──
 
 # L28: Dual-agent diagonal (34c, 2ag)
@@ -1452,6 +1474,22 @@ _PP_L33 = len(LEVELS) - 1
 # L34: 5-color sandwich puzzle (27c, 1ag)
 LEVELS += ({"cells": [(0,0,3),(1,0,1),(2,0,1),(5,0,1),(6,0,1),(7,0,2),(2,2,(18,19)),(6,2,18),(7,2,(19,2)),(1,3,2),(2,3,19),(6,3,2),(7,3,19),(0,6,3),(0,7,19),(1,7,(1,2)),(8,7,3),(1,8,(2,19)),(2,8,19),(6,8,(2,2)),(7,8,1),(8,8,2),(2,9,2),(3,9,1),(4,9,1),(5,9,1),(6,9,2)], "agents": [{"x":1,"y":2,"dx":1,"dy":0,"team":0}]},)
 _PP_L34 = len(LEVELS) - 1
+
+# L41: Adversarial complex (41c, 2ag, intercept) — Y=R R=D Pk=P B=R Tl=L
+LEVELS += ({"cells": [(10,0,3),(11,0,1),(10,1,1),(9,2,1),(10,2,19),(10,3,1),(9,7,18),(1,8,3),(4,8,(3,3)),(9,8,5),(10,8,19),(14,8,1),(1,10,3),(4,10,(19,19)),(9,10,5),(10,10,19),(14,10,1),(1,11,2),(1,12,2),(0,12,2),(1,12,(19,3)),(1,13,2),(1,14,19),(9,14,5),(10,14,19),(14,14,1),(1,16,19),(9,16,5),(10,16,19),(14,16,1),(9,18,3),(10,18,3),(9,19,(2,3)),(10,19,3),(7,20,19),(8,20,19),(9,20,(19,3)),(10,20,(19,19)),(7,21,(3,19)),(8,21,19),(9,21,(2,19)),(10,21,(19,19))],
+     "agents": [{"x":-1,"y":12,"dx":1,"dy":0,"team":0,"evil":False},
+                {"x":7,"y":22,"dx":0,"dy":-1,"team":1,"evil":True}],
+     "mode": "intercept",
+     "evil_rules": {1:1, 2:0, 3:4, 18:2, 19:3}},)
+_PP_L41 = len(LEVELS) - 1
+
+# L42: Adversarial compact (25c, 2ag, intercept) — Y=R R=L Pk=Rp B=P Tl=D
+LEVELS += ({"cells": [(6,0,2),(7,1,2),(8,2,2),(11,2,(19,18)),(0,4,18),(1,4,18),(2,4,18),(3,4,18),(4,4,18),(5,4,18),(6,4,(1,2)),(7,4,(1,2)),(8,4,(1,2)),(9,4,3),(10,4,19),(11,4,(3,1)),(12,4,19),(8,6,1),(11,6,(19,18)),(7,7,1),(11,7,19),(6,8,1),(11,8,19),(11,0,19),(11,1,19)],
+     "agents": [{"x":-1,"y":4,"dx":1,"dy":0,"team":0,"evil":False},
+                {"x":34,"y":4,"dx":-1,"dy":0,"team":1,"evil":True}],
+     "mode": "intercept",
+     "evil_rules": {1:4, 2:0, 3:3, 18:2, 19:1}},)
+_PP_L42 = len(LEVELS) - 1
 
 # ── External levels loader ──
 # Load additional levels from levels.txt (one TGUSF1-... code per line)
@@ -1507,11 +1545,17 @@ CAMPAIGN_ORDER = _dedup([
     _PP_L29, _PP_L21, _PP_L16, _PP_L31, _3AGENT_FRAME, _PP_L18,
     # Act 12: 5-color endgame (5) — surrounded, spiral frame, scatter, 4-agent sweep
     _SURROUNDED, _PP_L23, _PP_L26, _PP_L32, _PP_L34,
-    # Act 13: Boss levels (4) — scenic + hardest puzzles
+    # Act 13: Advanced grids (3) — big satisfying solves
+    _PP_L38, _PP_L36, _PP_L37,
+    # Act 14: Multi-agent advanced (2) — 4-agent + fractal pairs
+    _PP_L40, _PP_L39,
+    # Act 15: Boss levels (4) — scenic + hardest puzzles
     _PP_L33, _PP_L17, _SPIRAL_REV,
+    # Act 14: Adversarial (2) — intercept evil agents + clear the board
+    _PP_L42, _PP_L41,
     # The Gauntlet: 5-color, 2-agent, all verbs, 1 solution — penultimate challenge
     _GAUNTLET,
-    # Finale: The Replic8
+    # Finale: The Dissip8
     _R8,
 ])
 
@@ -1565,14 +1609,21 @@ def serialize_level(level):
     }
 
     if "agents" in level:
-        data["a"] = [[a["x"] - min_x, a["y"] - min_y, a["dx"], a["dy"], a.get("team", 0)]
+        data["a"] = [[a["x"] - min_x, a["y"] - min_y, a["dx"], a["dy"],
+                       a.get("team", 0), 1 if a.get("evil") else 0]
                       for a in level["agents"]]
     else:
         data["a"] = [[level["start"][0] - min_x, level["start"][1] - min_y,
-                       level["dir"][0], level["dir"][1], 0]]
+                       level["dir"][0], level["dir"][1], 0, 0]]
 
     if level.get("per_agent_rules"):
         data["p"] = 1
+
+    if level.get("evil_rules"):
+        data["e"] = {str(k): v for k, v in level["evil_rules"].items()}
+
+    if level.get("mode") and level["mode"] != "clear":
+        data["m"] = level["mode"]
 
     payload = json.dumps(data, separators=(',', ':'))
     compressed = zlib.compress(payload.encode(), 9)
@@ -1600,12 +1651,22 @@ def deserialize_level(code):
         return c
 
     cells = [(x, y, decode_cell(c)) for x, y, c in data["c"]]
-    agents = [{"x": a[0], "y": a[1], "dx": a[2], "dy": a[3], "team": a[4]}
-              for a in data["a"]]
+    agents = []
+    for a in data["a"]:
+        agent = {"x": a[0], "y": a[1], "dx": a[2], "dy": a[3], "team": a[4]}
+        # evil flag: 6th element if present
+        if len(a) > 5 and a[5]:
+            agent["evil"] = True
+        agents.append(agent)
 
     level = {"cells": cells, "agents": agents}
     if data.get("p"):
         level["per_agent_rules"] = True
+    if data.get("e"):
+        level["evil_rules"] = {int(k): v for k, v in data["e"].items()}
+        level["mode"] = "intercept"
+    if data.get("m"):
+        level["mode"] = data["m"]
     return level
 
 
@@ -1824,6 +1885,42 @@ def draw_editor_panel(screen, font, font_sm, editor_state, mouse_pos):
     per_agent_btn = (pbx, y, pbw, 20, "per_agent_toggle")
     y += 26
 
+    # intercept mode toggle
+    is_intercept = editor_state.get("intercept_mode", False)
+    ibx, iby = px + 8, y
+    ibw, ibh = PANEL_W - 16, 22
+    i_hov = ibx <= mouse_pos[0] < ibx + ibw and iby <= mouse_pos[1] < iby + ibh
+    i_bg = (220, 50, 50) if is_intercept else (55, 55, 70) if i_hov else (40, 40, 52)
+    pygame.draw.rect(screen, i_bg, (ibx, iby, ibw, ibh), border_radius=3)
+    i_fg = (255, 255, 255) if is_intercept else TEXT_COLOR
+    i_label = "INTERCEPT MODE [ON] — click agent to toggle evil" if is_intercept else "Intercept Mode [OFF]"
+    screen.blit(font_sm.render(i_label, True, i_fg), (ibx + 6, iby + 3))
+    intercept_btn = (ibx, iby, ibw, ibh, "intercept_toggle")
+    y += ibh + 4
+
+    # evil rules display (when intercept mode on and evil agents exist)
+    evil_rule_rects = []
+    if is_intercept:
+        evil_agents = [a for a in editor_state.get("_editor_agents_ref", []) if a.get("evil")]
+        if evil_agents:
+            screen.blit(font_sm.render("EVIL RULES (click to set):", True, (220, 100, 100)), (px + 10, y))
+            y += 16
+            evil_rules = editor_state.get("evil_rules", {1: 0, 2: 0, 3: 0, 18: 0, 19: 0})
+            for wall_type in [1, 2, 3, 18, 19]:  # R, Y, B, Pk, T
+                cname = {1: "Red", 2: "Yellow", 3: "Blue", 18: "Pink", 19: "Teal"}[wall_type]
+                verb = evil_rules.get(wall_type, 0)
+                vname = VERB_NAMES.get(verb, "Pass")
+                ebx, eby = px + 10, y
+                ebw, ebh = PANEL_W - 20, 20
+                e_hov = ebx <= mouse_pos[0] < ebx + ebw and eby <= mouse_pos[1] < eby + ebh
+                e_bg = (60, 30, 30) if e_hov else (40, 25, 25)
+                pygame.draw.rect(screen, e_bg, (ebx, eby, ebw, ebh), border_radius=2)
+                pygame.draw.rect(screen, WCOLOR.get(wall_type, (100,100,100)), (ebx + 2, eby + 2, 16, ebh - 4))
+                screen.blit(font_sm.render(f"{cname} -> {vname}", True, (220, 150, 150)), (ebx + 22, eby + 2))
+                evil_rule_rects.append((ebx, eby, ebw, ebh, ("evil_rule", wall_type)))
+                y += ebh + 2
+            y += 4
+
     # cell palette header
     screen.blit(font_sm.render("CELLS:", True, TEXT_COLOR), (px + 10, y))
     y += 16
@@ -1931,7 +2028,7 @@ def draw_editor_panel(screen, font, font_sm, editor_state, mouse_pos):
             y += 13
 
     # return all clickable rects: btn_rects (cells) + action_rects + special buttons
-    all_special = [agent_btn, per_agent_btn] + count_rects
+    all_special = [agent_btn, per_agent_btn, intercept_btn] + count_rects + evil_rule_rects
     return btn_rects, action_rects + all_special
 
 
@@ -1950,16 +2047,23 @@ def draw_editor_grid(screen, grid, editor_agents, underneath):
             if is_wall(c):
                 draw_cell(screen, x * CELL, y * CELL, c)
 
-    # draw editor agents (as colored arrows)
+    # draw editor agents (as colored arrows, evil agents in red)
     for a in editor_agents:
         rx, ry = a["x"] * CELL, a["y"] * CELL
         cx, cy = rx + CELL // 2, ry + CELL // 2
-        team = a.get("team", 0)
-        color = TEAM_COLORS[team % len(TEAM_COLORS)]
+        if a.get("evil"):
+            color = EVIL_COLOR
+        else:
+            team = a.get("team", 0)
+            color = TEAM_COLORS[team % len(TEAM_COLORS)]
         pygame.draw.circle(screen, color, (cx, cy), CELL // 2 - 2)
         tip_x = cx + a["dx"] * (CELL // 4)
         tip_y = cy + a["dy"] * (CELL // 4)
         pygame.draw.circle(screen, (255, 255, 255), (tip_x, tip_y), 3)
+        if a.get("evil"):
+            # draw small "E" marker
+            font_tiny = pygame.font.SysFont("consolas", 9)
+            screen.blit(font_tiny.render("E", True, (255, 255, 255)), (rx + 1, ry + 1))
 
 
 # ── world setup ──
@@ -2430,11 +2534,11 @@ def draw_panel(screen, font, font_sm, verbs_list, active_team, n_teams, step, ag
                evil_rules=None, is_testing=False):
     px = GRID_PX_W
     pygame.draw.rect(screen, PANEL_BG, (px, 0, PANEL_W, WIN_H))
-    level = LEVELS[level_idx % NUM_LEVELS]
+    level = LEVELS[level_idx if level_idx < len(LEVELS) else level_idx % NUM_LEVELS]
     is_intercept = level.get("mode") == "intercept"
 
     y = 10
-    screen.blit(font.render("REPLIC8", True, TEXT_COLOR), (px + 10, y))
+    screen.blit(font.render("DISSIP8", True, TEXT_COLOR), (px + 10, y))
     y += 24
     screen.blit(font_sm.render(f"Level {level_idx + 1} / {NUM_LEVELS}", True, TEXT_DIM), (px + 12, y))
     y += 22
@@ -2454,17 +2558,23 @@ def draw_panel(screen, font, font_sm, verbs_list, active_team, n_teams, step, ag
     hero_alive = sum(1 for a in agents if not a.get("evil") and a.get("alive", True))
 
     if is_intercept:
-        if evil_alive == 0 and step > 0:
-            msg, color = "INTERCEPTED!", STATUS_GREEN
-            sub_msg = "All threats neutralized. Press N."
-        elif hero_alive == 0 and step > 0:
-            msg, color = "HERO DISSOLVED", STATUS_RED
-            sub_msg = "Your agent dissolved. Try again (R)."
+        if walls_left == 0 and len(agents) == 0:
+            msg, color = "PERFECT!", STATUS_GREEN
+            sub_msg = "Board cleared, all agents dissolved. Press N."
+        elif walls_left == 0 and evil_alive == 0 and hero_alive > 0:
+            msg, color = "ALMOST!", STATUS_YELLOW
+            sub_msg = f"Evil gone but {hero_alive} hero still alive."
+        elif walls_left == 0:
+            msg, color = "PATH CLEARED", STATUS_GREEN
+            sub_msg = f"{len(agents)} still alive. Not perfect."
+        elif len(agents) == 0 and step > 0:
+            msg, color = "ALL DISSOLVED", STATUS_RED
+            sub_msg = f"{walls_left} cells remaining. Try again (R)."
         elif step >= MAX_STEPS:
             msg, color = "TIME'S UP", STATUS_RED
         elif paused and step == 0:
             msg, color = "INTERCEPT MODE", STATUS_YELLOW
-            sub_msg = "Route the evil agents to dissolve."
+            sub_msg = "Clear board + dissolve all agents (incl. evil)."
         elif paused:
             msg, color = "PAUSED", STATUS_YELLOW
         else:
@@ -2511,7 +2621,7 @@ def draw_panel(screen, font, font_sm, verbs_list, active_team, n_teams, step, ag
     else:
         y += 36
 
-    level = LEVELS[level_idx % NUM_LEVELS]
+    level = LEVELS[level_idx if level_idx < len(LEVELS) else level_idx % NUM_LEVELS]
     screen.blit(font_sm.render("SHAPE:", True, TEXT_COLOR), (px + 12, y))
     y += 18
     y = draw_shape_preview(screen, font_sm, level, px + 12, y)
@@ -2664,7 +2774,7 @@ def draw_title_screen(screen, font, font_sm, font_lg, mouse_pos, tick):
     cx = WIN_W // 2
 
     # title
-    title = font_lg.render("REPLIC8", True, (220, 210, 70))
+    title = font_lg.render("DISSIP8", True, (220, 210, 70))
     screen.blit(title, (cx - title.get_width() // 2, 140))
 
     sub = font_sm.render("Set the rules. Watch them propagate.", True, TEXT_DIM)
@@ -2985,7 +3095,7 @@ async def main():
 
     pygame.init()
     screen = pygame.display.set_mode((WIN_W, WIN_H))
-    pygame.display.set_caption("Replic8")
+    pygame.display.set_caption("Dissip8")
     clock = pygame.time.Clock()
     font    = pygame.font.SysFont("consolas", 15)
     font_sm = pygame.font.SysFont("consolas", 13)
@@ -3110,7 +3220,7 @@ async def main():
 
     def reset_level():
         nonlocal grid, agents, underneath, walls_start, paused, step, total_spawned, peak_pop, place_agent_pos
-        level = LEVELS[level_idx % NUM_LEVELS]
+        level = LEVELS[level_idx if level_idx < len(LEVELS) else level_idx % NUM_LEVELS]
 
         if level.get("mode") == "place_agent":
             # load grid but no agents — player places them
@@ -3153,7 +3263,7 @@ async def main():
     place_agent_pos = []  # list of {"x","y","dx","dy"} for player-placed agents
 
     def is_place_agent():
-        return LEVELS[level_idx % NUM_LEVELS].get("mode") == "place_agent"
+        return LEVELS[level_idx if level_idx < len(LEVELS) else level_idx % NUM_LEVELS].get("mode") == "place_agent"
 
     def start_level(idx):
         nonlocal level_idx, verbs_list, active_team, screen_mode, show_pause_menu, place_agent_pos
@@ -3261,9 +3371,12 @@ async def main():
             editor_state["status_msg"] = "No cells to test"
             return
         level["agents"] = [{"x": a["x"], "y": a["y"], "dx": a["dx"], "dy": a["dy"],
-                            "team": a.get("team", 0)} for a in editor_agents]
+                            "team": a.get("team", 0), "evil": a.get("evil", False)} for a in editor_agents]
         if editor_state["per_agent"]:
             level["per_agent_rules"] = True
+        if editor_state.get("intercept_mode"):
+            level["mode"] = "intercept"
+            level["evil_rules"] = dict(editor_state.get("evil_rules", {WALL_RED: VERB_PASS, WALL_YELLOW: VERB_PASS, WALL_BLUE: VERB_PASS, WALL_PINK: VERB_PASS, WALL_TEAL: VERB_PASS}))
 
         saved_editor_test_level = level
 
@@ -3321,9 +3434,12 @@ async def main():
             editor_state["status_msg"] = "Place agent first! (click PLACE AGENT)"
             return
         level["agents"] = [{"x": a["x"], "y": a["y"], "dx": a["dx"], "dy": a["dy"],
-                            "team": a.get("team", 0)} for a in editor_agents]
+                            "team": a.get("team", 0), "evil": a.get("evil", False)} for a in editor_agents]
         if editor_state["per_agent"]:
             level["per_agent_rules"] = True
+        if editor_state.get("intercept_mode"):
+            level["mode"] = "intercept"
+            level["evil_rules"] = dict(editor_state.get("evil_rules", {}))
         code = serialize_level(level)
         if code:
             copied = False
@@ -3378,11 +3494,20 @@ async def main():
         grid = [[EMPTY]*GRID_W for _ in range(GRID_H)]
         underneath = {}
 
-        # center the level
+        # center the level — include agent positions in bounding box
         cells = level["cells"]
-        xs = [x for x, y, c in cells]; ys = [y for x, y, c in cells]
+        agent_defs = level.get("agents", [])
+        xs = [x for x, y, c in cells] + [a["x"] for a in agent_defs]
+        ys = [y for x, y, c in cells] + [a["y"] for a in agent_defs]
         ox = (GRID_W - (max(xs) - min(xs) + 1)) // 2 - min(xs)
         oy = (GRID_H - (max(ys) - min(ys) + 1)) // 2 - min(ys)
+        # clamp so nothing goes off-grid
+        for x, y, c in cells:
+            gx, gy = x + ox, y + oy
+            if gx < 0: ox -= gx
+            if gy < 0: oy -= gy
+            if gx >= GRID_W: ox -= (gx - GRID_W + 1)
+            if gy >= GRID_H: oy -= (gy - GRID_H + 1)
 
         for x, y, c in cells:
             gx, gy = x + ox, y + oy
@@ -3392,12 +3517,21 @@ async def main():
         editor_agents = []
         for a in level.get("agents", []):
             editor_agents.append({"x": a["x"] + ox, "y": a["y"] + oy,
-                                  "dx": a["dx"], "dy": a["dy"], "team": a.get("team", 0)})
+                                  "dx": a["dx"], "dy": a["dy"], "team": a.get("team", 0),
+                                  "evil": a.get("evil", False)})
 
         editor_state["per_agent"] = level.get("per_agent_rules", False)
         editor_state["num_agents"] = len(editor_agents)
         editor_state["level_code"] = code
-        editor_state["status_msg"] = "Level loaded OK"
+
+        # restore intercept mode and evil rules
+        if level.get("mode") == "intercept" and level.get("evil_rules"):
+            editor_state["intercept_mode"] = True
+            editor_state["evil_rules"] = dict(level["evil_rules"])
+            editor_state["status_msg"] = "Intercept level loaded OK"
+        else:
+            editor_state["intercept_mode"] = False
+            editor_state["status_msg"] = "Level loaded OK"
 
     # init scrap for clipboard
     try:
@@ -3538,6 +3672,13 @@ async def main():
                         elif event.key == pygame.K_a:
                             editor_state["per_agent"] = not editor_state["per_agent"]
                             editor_state["status_msg"] = f"Per-agent rules: {'ON' if editor_state['per_agent'] else 'OFF'}"
+                        elif event.key == pygame.K_i:
+                            editor_state["intercept_mode"] = not editor_state.get("intercept_mode", False)
+                            if editor_state["intercept_mode"]:
+                                editor_state["evil_rules"] = editor_state.get("evil_rules", {WALL_RED: VERB_PASS, WALL_YELLOW: VERB_PASS, WALL_BLUE: VERB_PASS, WALL_PINK: VERB_PASS, WALL_TEAL: VERB_PASS})
+                                editor_state["status_msg"] = "Intercept ON — click agents to toggle evil"
+                            else:
+                                editor_state["status_msg"] = "Intercept OFF"
 
                     elif show_pause_menu:
                         if event.key == pygame.K_SPACE:
@@ -3560,7 +3701,7 @@ async def main():
                             if not paused:
                                 paused = True
                             # simulate one fresh tick
-                            cur_level = LEVELS[level_idx % NUM_LEVELS]
+                            cur_level = LEVELS[level_idx if level_idx < len(LEVELS) else level_idx % NUM_LEVELS]
                             cur_evil = cur_level.get("evil_rules")
                             wl = count_walls(grid, underneath)
                             go = (wl > 0) and (len(agents) > 0 or step == 0) and (step < MAX_STEPS)
@@ -3711,22 +3852,29 @@ async def main():
                         mx, my = mouse_pos
                         gx, gy = mx // CELL, my // CELL
                         if mx < GRID_PX_W and 0 <= gx < GRID_W and 0 <= gy < GRID_H:
-                            agent_mode = editor_state.get("agent_place_mode", False)
-                            if agent_mode or (pygame.key.get_mods() & pygame.KMOD_SHIFT):
-                                # agent placement mode
-                                existing = [a for a in editor_agents if a["x"] == gx and a["y"] == gy]
-                                if existing:
-                                    a = existing[0]
-                                    dirs = [(1,0),(0,1),(-1,0),(0,-1)]
-                                    cur = (a["dx"], a["dy"])
-                                    idx = dirs.index(cur) if cur in dirs else 0
-                                    if idx < 3:
-                                        a["dx"], a["dy"] = dirs[idx + 1]
-                                        editor_state["status_msg"] = f"Agent rotated"
-                                    else:
-                                        editor_agents.remove(a)
-                                        editor_state["status_msg"] = "Agent removed"
+                            # check intercept evil toggle FIRST (click on existing agent)
+                            existing_at = [a for a in editor_agents if a["x"] == gx and a["y"] == gy]
+                            if existing_at and editor_state.get("intercept_mode") and not (pygame.key.get_mods() & pygame.KMOD_SHIFT):
+                                a = existing_at[0]
+                                a["evil"] = not a.get("evil", False)
+                                status = "EVIL" if a["evil"] else "HERO"
+                                editor_state["status_msg"] = f"Agent set to {status} (Shift+click to rotate)"
+                            elif existing_at and (pygame.key.get_mods() & pygame.KMOD_SHIFT):
+                                # shift+click: rotate or remove agent
+                                a = existing_at[0]
+                                dirs = [(1,0),(0,1),(-1,0),(0,-1)]
+                                cur = (a["dx"], a["dy"])
+                                idx = dirs.index(cur) if cur in dirs else 0
+                                if idx < 3:
+                                    a["dx"], a["dy"] = dirs[idx + 1]
+                                    editor_state["status_msg"] = f"Agent rotated"
                                 else:
+                                    editor_agents.remove(a)
+                                    editor_state["status_msg"] = "Agent removed"
+                            else:
+                                agent_mode = editor_state.get("agent_place_mode", False)
+                                if agent_mode or (pygame.key.get_mods() & pygame.KMOD_SHIFT):
+                                    # agent placement mode — place new agent
                                     if len(editor_agents) < editor_state["num_agents"]:
                                         team = len(editor_agents)
                                         editor_agents.append({"x": gx, "y": gy, "dx": 1, "dy": 0, "team": team})
@@ -3734,11 +3882,11 @@ async def main():
                                         editor_state["status_msg"] = f"Agent {team+1} placed (click to rotate)"
                                     else:
                                         editor_state["status_msg"] = f"Max {editor_state['num_agents']} agents"
-                            else:
-                                editor_save_undo()
-                                # use current brush (persists until changed)
-                                brush = editor_state.get("brush", editor_state["selected"])
-                                grid[gy][gx] = brush
+                                else:
+                                    # place cell
+                                    editor_save_undo()
+                                    brush = editor_state.get("brush", editor_state["selected"])
+                                    grid[gy][gx] = brush
                         else:
                             # panel clicks
                             for bx, by, bw, bh, cell_type in editor_palette_rects:
@@ -3773,6 +3921,18 @@ async def main():
                                     elif key == "per_agent_toggle":
                                         editor_state["per_agent"] = not editor_state["per_agent"]
                                         editor_state["status_msg"] = f"Per-agent: {'ON' if editor_state['per_agent'] else 'OFF'}"
+                                    elif key == "intercept_toggle":
+                                        editor_state["intercept_mode"] = not editor_state.get("intercept_mode", False)
+                                        if editor_state["intercept_mode"]:
+                                            editor_state["evil_rules"] = editor_state.get("evil_rules", {WALL_RED: VERB_PASS, WALL_YELLOW: VERB_PASS, WALL_BLUE: VERB_PASS, WALL_PINK: VERB_PASS, WALL_TEAL: VERB_PASS})
+                                            editor_state["status_msg"] = "Intercept ON — click agents to toggle evil"
+                                        else:
+                                            editor_state["status_msg"] = "Intercept OFF"
+                                    elif isinstance(key, tuple) and key[0] == "evil_rule":
+                                        wall_type = key[1]
+                                        er = editor_state.get("evil_rules", {WALL_RED: VERB_PASS, WALL_YELLOW: VERB_PASS, WALL_BLUE: VERB_PASS, WALL_PINK: VERB_PASS, WALL_TEAL: VERB_PASS})
+                                        er[wall_type] = (er.get(wall_type, 0) + 1) % VERB_COUNT
+                                        editor_state["evil_rules"] = er
                                     elif isinstance(key, tuple) and key[0] == "agent_count":
                                         editor_state["num_agents"] = key[1]
                                         if key[1] == 1:
@@ -3798,7 +3958,7 @@ async def main():
                                         grid[gy][gx] = EMPTY
                                         agents.remove(a)
                                         place_agent_pos = [{"x":a2["x"],"y":a2["y"],"dx":a2["dx"],"dy":a2["dy"]} for a2 in agents]
-                                elif len(agents) < LEVELS[level_idx % NUM_LEVELS].get("max_agents", 1):
+                                elif len(agents) < LEVELS[level_idx if level_idx < len(LEVELS) else level_idx % NUM_LEVELS].get("max_agents", 1):
                                     new_a = {"x": gx, "y": gy, "dx": 1, "dy": 0, "alive": True, "team": 0}
                                     agents.append(new_a)
                                     grid[gy][gx] = AGENT
@@ -3812,7 +3972,7 @@ async def main():
                                 break
                         for bx, by, bw, bh, wall_type in btn_hit_rects:
                             if bx <= mouse_pos[0] < bx + bw and by <= mouse_pos[1] < by + bh:
-                                disabled = get_disabled_verbs(LEVELS[level_idx % NUM_LEVELS]).get(wall_type, [])
+                                disabled = get_disabled_verbs(LEVELS[level_idx if level_idx < len(LEVELS) else level_idx % NUM_LEVELS]).get(wall_type, [])
                                 verbs_list[active_team][wall_type] = cycle_verb(verbs_list[active_team][wall_type], disabled)
                                 if sounds:
                                     sounds.play_click()
@@ -3834,7 +3994,7 @@ async def main():
         tick_ms = SPEED_MS[sim_speed]
 
         if screen_mode == "play" and not editor_mode and not show_pause_menu:
-            cur_level = LEVELS[level_idx % NUM_LEVELS]
+            cur_level = LEVELS[level_idx] if level_idx < len(LEVELS) else LEVELS[level_idx if level_idx < len(LEVELS) else level_idx % NUM_LEVELS]
             cur_evil_rules = cur_level.get("evil_rules")
             is_intercept = cur_level.get("mode") == "intercept"
             walls_left = count_walls(grid, underneath)
@@ -3842,15 +4002,11 @@ async def main():
             evil_alive = sum(1 for a in agents if a.get("evil") and a.get("alive", True))
             hero_alive = sum(1 for a in agents if not a.get("evil") and a.get("alive", True))
 
-            if is_intercept:
-                game_over = (evil_alive == 0 and step > 0) or (hero_alive == 0 and step > 0) or (step >= MAX_STEPS)
-            else:
-                game_over = (walls_left == 0) or (len(agents) == 0 and step > 0) or (step >= MAX_STEPS)
+            # unified win condition: all cells cleared + zero agents (including evil)
+            game_over = (walls_left == 0) or (len(agents) == 0 and step > 0) or (step >= MAX_STEPS)
 
             if game_over and step > 0:
                 new_stars = calc_stars(walls_left, len(agents), step, cur_level)
-                if is_intercept and evil_alive == 0:
-                    new_stars = max(new_stars, 2)  # at least "perfect" for intercept win
                 if level_idx < len(stars) and new_stars > stars[level_idx]:
                     stars[level_idx] = new_stars
                     save_progress(stars, sim_speed, show_gridlines, community_packs)
@@ -3918,6 +4074,7 @@ async def main():
                     gx, gy = mx // CELL, my // CELL
                     if 0 <= gx < GRID_W and 0 <= gy < GRID_H:
                         pygame.draw.rect(screen, (80, 80, 100), (gx * CELL, gy * CELL, CELL, CELL), 1)
+                editor_state["_editor_agents_ref"] = editor_agents  # pass ref for evil display
                 editor_palette_rects, editor_action_rects = draw_editor_panel(
                     screen, font, font_sm, editor_state, mouse_pos)
 
@@ -3941,6 +4098,13 @@ async def main():
                         ("  PLACE AGENT btn", "Toggle agent placement mode"),
                         ("  1 / 2 / 3 / 4", "Set max agent count"),
                         ("  A", "Toggle per-agent rules"),
+                        ("  I", "Toggle intercept mode (evil agents)"),
+                        ("", ""),
+                        ("INTERCEPT MODE", ""),
+                        ("  I / button", "Toggle intercept mode on/off"),
+                        ("  Click agent", "Toggle hero (green) / evil (red)"),
+                        ("  Evil rules", "Click color buttons in panel to set"),
+                        ("  Win cond.", "All evil agents must dissolve"),
                         ("", ""),
                         ("CELLS", ""),
                         ("  Click palette", "Select cell type to place"),
@@ -3977,7 +4141,7 @@ async def main():
                     for gy in range(GRID_H + 1):
                         pygame.draw.line(screen, (30, 30, 40), (0, gy * CELL), (GRID_PX_W, gy * CELL))
                 draw_grid(screen, grid, agents, underneath)
-                cur_lev = LEVELS[level_idx % NUM_LEVELS]
+                cur_lev = LEVELS[level_idx if level_idx < len(LEVELS) else level_idx % NUM_LEVELS]
                 cur_evil = cur_lev.get("evil_rules") or cur_lev.get("fixed_rules")
                 btn_hit_rects, tab_hit_rects = draw_panel(
                     screen, font, font_sm, verbs_list, active_team, num_teams(),
@@ -3987,7 +4151,7 @@ async def main():
 
                 # star rating after level complete
                 if walls_left == 0 and step > 0:
-                    new_s = calc_stars(walls_left, len(agents), step, LEVELS[level_idx % NUM_LEVELS])
+                    new_s = calc_stars(walls_left, len(agents), step, LEVELS[level_idx if level_idx < len(LEVELS) else level_idx % NUM_LEVELS])
                     star_txt = STAR_CHARS[new_s]
                     star_labels = ["", "CLEARED", "PERFECT!", "EFFICIENT!"]
                     star_msg = f"{star_txt} {star_labels[new_s]}"
