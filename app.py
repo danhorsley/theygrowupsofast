@@ -1405,6 +1405,54 @@ LEVELS += (
 )
 _SYM_FACTORY = len(LEVELS) - 1
 
+# L35: "The Gauntlet" — 5-color, 2-agent facing, 70c, all 5 verbs used, 1 unique solution
+# R=TR Y=D B=Rp Pk=TL T=P pk=6 t=26 — the ultimate boss level
+LEVELS += (
+    {"cells": [(2,0,(18,18)),(3,0,(18,18)),(7,0,(1,1)),(8,0,(1,1)),
+               (1,1,(18,18)),(2,1,(1,1)),(3,1,(1,1)),(4,1,(18,18)),(6,1,(1,1)),(7,1,(18,18)),(8,1,(18,18)),(9,1,(1,1)),
+               (0,2,2),(1,2,(18,1)),(2,2,19),(3,2,2),(4,2,3),(5,2,19),(6,2,3),(7,2,2),(8,2,19),(9,2,(1,18)),(10,2,2),
+               (0,3,1),(1,3,19),(2,3,19),(3,3,19),(4,3,18),(5,3,3),(6,3,1),(7,3,19),(8,3,19),(9,3,19),(10,3,18),
+               (0,4,1),(1,4,19),(2,4,19),(3,4,19),(4,4,19),(5,4,(1,18)),(6,4,19),(7,4,19),(8,4,19),(9,4,19),(10,4,18),
+               (1,5,2),(2,5,(18,19)),(3,5,19),(4,5,3),(5,5,(18,1)),(6,5,3),(7,5,19),(8,5,(1,19)),(9,5,2),
+               (2,6,18),(3,6,19),(4,6,1),(5,6,19),(6,6,18),(7,6,19),(8,6,1),
+               (3,7,2),(4,7,(3,1)),(5,7,19),(6,7,(3,18)),(7,7,2),
+               (4,8,2),(5,8,3),(6,8,2),
+               (5,9,19)],
+     "agents": [{"x":5,"y":10,"dx":0,"dy":-1,"team":0},
+                {"x":5,"y":1,"dx":0,"dy":1,"team":1}]},
+)
+_GAUNTLET = len(LEVELS) - 1
+
+# ── Pingpong L28-L34 ──
+
+# L28: Dual-agent diagonal (34c, 2ag)
+LEVELS += ({"cells": [(4,0,3),(8,0,19),(3,1,3),(8,1,19),(2,2,3),(8,2,19),(1,3,3),(8,3,19),(5,4,2),(7,4,2),(9,4,2),(11,4,2),(13,4,3),(14,4,3),(15,4,3),(16,4,3),(17,4,19),(0,5,19),(1,5,3),(2,5,3),(3,5,3),(4,5,3),(6,5,2),(8,5,2),(10,5,2),(12,5,2),(8,6,19),(16,6,3),(8,7,19),(15,7,3),(8,8,19),(14,8,3),(8,9,19),(13,9,3)], "agents": [{"x":4,"y":4,"dx":1,"dy":0,"team":0},{"x":13,"y":5,"dx":-1,"dy":0,"team":1}]},)
+_PP_L28 = len(LEVELS) - 1
+
+# L29: Compact dual-agent (19c, 2ag)
+LEVELS += ({"cells": [(1,0,1),(6,0,6),(3,1,1),(4,1,18),(5,1,1),(7,1,1),(0,3,1),(1,3,2),(1,5,6),(3,5,2),(4,5,2),(5,5,2),(6,5,6),(4,6,1),(5,6,1),(6,6,1),(7,6,1),(0,7,1),(6,7,1)], "agents": [{"x":2,"y":5,"dx":1,"dy":0,"team":0},{"x":5,"y":7,"dx":0,"dy":-1,"team":1}]},)
+_PP_L29 = len(LEVELS) - 1
+
+# L30: Dual-agent rooms (42c, 2ag)
+LEVELS += ({"cells": [(5,0,1),(6,0,3),(7,0,3),(8,0,3),(9,0,1),(5,1,3),(6,1,1),(9,1,3),(1,2,2),(5,2,3),(6,2,1),(9,2,3),(1,3,2),(5,3,3),(6,3,1),(9,3,3),(0,4,1),(1,4,2),(5,4,3),(6,4,1),(7,4,19),(9,4,3),(1,5,2),(5,5,3),(6,5,1),(7,5,1),(8,5,1),(9,5,3),(0,6,1),(5,6,3),(6,6,1),(7,6,1),(8,6,1),(9,6,3),(5,7,3),(6,7,1),(7,7,3),(8,7,3),(9,7,1),(7,8,19),(6,10,2),(7,10,2)], "agents": [{"x":5,"y":8,"dx":0,"dy":-1,"team":0},{"x":-5,"y":1,"dx":1,"dy":0,"team":1}]},)
+_PP_L30 = len(LEVELS) - 1
+
+# L31: 4-agent staircase (52c, 4ag)
+LEVELS += ({"cells": [(16,0,2),(18,0,1),(15,1,2),(18,1,1),(14,2,2),(18,2,1),(13,3,2),(18,3,1),(3,4,3),(4,4,2),(9,4,3),(10,4,2),(15,4,3),(16,4,19),(18,4,1),(2,5,3),(3,5,2),(8,5,3),(9,5,2),(14,5,3),(15,5,19),(18,5,1),(1,6,3),(2,6,2),(7,6,3),(8,6,2),(13,6,3),(14,6,19),(18,6,1),(0,7,3),(1,7,2),(6,7,3),(7,7,2),(12,7,3),(13,7,19),(18,7,1),(4,8,19),(18,8,1),(3,9,19),(18,9,1),(2,10,19),(18,10,1),(1,11,19),(18,11,1),(10,12,19),(18,12,1),(9,13,19),(18,13,1),(8,14,19),(18,14,1),(7,15,19),(18,15,1)], "agents": [{"x":-2,"y":4,"dx":1,"dy":0,"team":0},{"x":-2,"y":5,"dx":1,"dy":0,"team":1},{"x":-2,"y":6,"dx":1,"dy":0,"team":2},{"x":-2,"y":7,"dx":1,"dy":0,"team":3}]},)
+_PP_L31 = len(LEVELS) - 1
+
+# L32: 4-agent grid sweep (63c, 4ag, 5 colors)
+LEVELS += ({"cells": [(3,0,18),(4,0,1),(5,0,18),(6,0,18),(7,0,18),(8,0,2),(2,1,18),(3,1,19),(5,1,1),(6,1,1),(7,1,1),(8,1,1),(1,2,18),(2,2,19),(5,2,1),(6,2,1),(7,2,1),(8,2,1),(0,3,18),(1,3,19),(5,3,1),(6,3,1),(7,3,1),(8,3,1),(0,4,1),(5,4,1),(6,4,1),(7,4,1),(8,4,1),(0,5,(3,18)),(1,5,1),(2,5,1),(3,5,1),(4,5,1),(5,5,1),(6,5,1),(7,5,1),(8,5,1),(9,5,1),(10,5,2),(0,6,18),(1,6,1),(2,6,1),(3,6,1),(4,6,1),(5,6,1),(6,6,1),(7,6,1),(8,6,1),(9,6,1),(10,6,2),(5,7,1),(6,7,1),(7,7,1),(8,7,1),(5,8,1),(6,8,2),(7,8,1),(8,8,1),(5,9,1),(6,9,2),(7,9,1),(8,9,1)], "agents": [{"x":5,"y":10,"dx":0,"dy":-1,"team":0},{"x":6,"y":10,"dx":0,"dy":-1,"team":1},{"x":7,"y":10,"dx":0,"dy":-1,"team":2},{"x":8,"y":10,"dx":0,"dy":-1,"team":3}]},)
+_PP_L32 = len(LEVELS) - 1
+
+# L33: Dual-agent scenic (69c, 2ag)
+LEVELS += ({"cells": [(0,0,3),(1,0,3),(2,0,3),(3,0,3),(4,0,3),(5,0,3),(6,0,3),(7,0,3),(8,0,3),(9,0,3),(10,0,3),(11,0,18),(11,1,1),(12,1,18),(10,2,1),(11,2,1),(12,2,1),(13,2,18),(10,3,2),(11,3,3),(0,4,6),(10,4,18),(11,4,3),(15,4,6),(17,4,6),(19,4,6),(21,4,6),(23,4,6),(25,4,6),(10,5,2),(11,5,3),(0,6,6),(10,6,18),(11,6,3),(10,7,2),(11,7,3),(0,8,6),(10,8,18),(11,8,3),(10,9,2),(11,9,3),(0,10,6),(10,10,18),(11,10,3),(10,11,2),(11,11,3),(0,12,6),(10,12,18),(11,12,3),(10,13,2),(11,13,3),(0,14,6),(10,14,18),(11,14,3),(13,14,1),(14,14,2),(15,14,1),(16,14,2),(17,14,1),(18,14,2),(19,14,1),(20,14,2),(21,14,1),(22,14,2),(23,14,1),(24,14,2),(25,14,1),(26,14,6),(10,15,6)], "agents": [{"x":-1,"y":0,"dx":1,"dy":0,"team":0},{"x":11,"y":15,"dx":0,"dy":-1,"team":1}]},)
+_PP_L33 = len(LEVELS) - 1
+
+# L34: 5-color sandwich puzzle (27c, 1ag)
+LEVELS += ({"cells": [(0,0,3),(1,0,1),(2,0,1),(5,0,1),(6,0,1),(7,0,2),(2,2,(18,19)),(6,2,18),(7,2,(19,2)),(1,3,2),(2,3,19),(6,3,2),(7,3,19),(0,6,3),(0,7,19),(1,7,(1,2)),(8,7,3),(1,8,(2,19)),(2,8,19),(6,8,(2,2)),(7,8,1),(8,8,2),(2,9,2),(3,9,1),(4,9,1),(5,9,1),(6,9,2)], "agents": [{"x":1,"y":2,"dx":1,"dy":0,"team":0}]},)
+_PP_L34 = len(LEVELS) - 1
+
 # ── External levels loader ──
 # Load additional levels from levels.txt (one TGUSF1-... code per line)
 # This allows hot-swapping community levels without editing app.py
@@ -1421,17 +1469,27 @@ if os.path.exists(_levels_txt):
 _COMMUNITY_LEVELS_END = len(LEVELS)
 _N_COMMUNITY = _COMMUNITY_LEVELS_END - _COMMUNITY_LEVELS_START
 
-CAMPAIGN_ORDER = [
-    # Act 1: Tutorial (5) — learn pass, dissolve, turns on simple tapes
-    0, 1, 2, 3, 5,
-    # Act 2: 2D + Grey + Triple sandwich (5) — turns in 2D, sandwich intro
-    8, 10, 11, _TRIPLE_SANDWICH, 14,
-    # Act 3: Advanced (5) — fractals, sandwiches, key puzzles
-    15, 16, 18, 20, 23,
+_seen_order = set()
+def _dedup(indices):
+    """Remove duplicate indices, keeping first occurrence."""
+    result = []
+    for idx in indices:
+        if idx not in _seen_order:
+            _seen_order.add(idx)
+            result.append(idx)
+    return result
+
+CAMPAIGN_ORDER = _dedup([
+    # Act 1: Tutorial (4) — learn pass, dissolve, turns on simple tapes
+    0, 1, 2, 5,
+    # Act 2: 2D + Grey + Triple sandwich (4) — turns in 2D, sandwich intro
+    8, 10, _TRIPLE_SANDWICH, 14,
+    # Act 3: Advanced (4) — fractals, sandwiches, key puzzles
+    15, 18, 20, 23,
     # Act 4: Multi-agent intro (4) — two agents, shared + per-agent rules
     _PP_L25, _PP_L15, 47, 48,
-    # Act 5: Devilish + No-Pass (4) — traps, forced replicate
-    79, 81, 83, 85,
+    # Act 5: Devilish (2) — traps, forced replicate
+    81, 85,
     # Act 6: 4-color + Reverse (5) — new mechanics, ping-pong intro
     _4C_START, _4C_START+1, _4C_START+3,
     _PINGPONG, _PP_L20,
@@ -1441,19 +1499,21 @@ CAMPAIGN_ORDER = [
     # Act 8: Cross-junction + Swap (4) — solve locally, watch it scale
     _CROSS_HAND, _CROSS_REWARD,
     _SWAP_START, _SWAP_START+1,
-    # Act 9: Dual-constraint (5) — two shapes, shared rules, 1 solution
-    _DUAL_HAND, _PP_L24, _DUAL_PATH_NEW, _PP_L14, _PP_L27,
+    # Act 9: Dual-constraint (8) — two shapes, shared rules
+    _DUAL_HAND, _PP_L24, _PP_L25, _DUAL_PATH_NEW, _PP_L14, _PP_L28, _PP_L30, _PP_L27,
     # Act 10: Spectacle (5) — consecutive replicate, layered factory, big grids
     _SPIRAL_GEN, _LAYERED_FACTORY, _PP_L22, _PP_L13, _SYM_FACTORY,
-    # Act 11: Multi-agent advanced (4) — 3-4 agents, room escape
-    _PP_L21, _PP_L16, _3AGENT_FRAME, _PP_L18,
-    # Act 12: 5-color endgame (3) — surrounded, spiral frame, scatter
-    _SURROUNDED, _PP_L23, _PP_L26,
-    # Act 13: Boss levels (2) — the hardest puzzles
-    _PP_L17, _SPIRAL_REV,
+    # Act 11: Multi-agent advanced (6) — 3-4 agents, room escape
+    _PP_L29, _PP_L21, _PP_L16, _PP_L31, _3AGENT_FRAME, _PP_L18,
+    # Act 12: 5-color endgame (5) — surrounded, spiral frame, scatter, 4-agent sweep
+    _SURROUNDED, _PP_L23, _PP_L26, _PP_L32, _PP_L34,
+    # Act 13: Boss levels (4) — scenic + hardest puzzles
+    _PP_L33, _PP_L17, _SPIRAL_REV,
+    # The Gauntlet: 5-color, 2-agent, all verbs, 1 solution — penultimate challenge
+    _GAUNTLET,
     # Finale: The Replic8
     _R8,
-]
+])
 
 CAMPAIGN = [LEVELS[i] for i in CAMPAIGN_ORDER if i < len(LEVELS)]
 
@@ -3019,31 +3079,34 @@ async def main():
     btn_hit_rects = []
     tab_hit_rects = []
 
-    history = []  # list of (grid_copy, agents_copy, underneath_copy) snapshots
-    MAX_HISTORY = 500
+    history = {}  # dict: step_number -> (grid_copy, agents_copy, underneath_copy)
+    MAX_HISTORY = 200
 
     def save_snapshot():
-        """Save current state for rewind."""
+        """Save current state for rewind, keyed by step number."""
         import copy
-        snap = (copy.deepcopy(grid), copy.deepcopy(agents), copy.deepcopy(underneath))
-        history.append(snap)
+        history[step] = (copy.deepcopy(grid), copy.deepcopy(agents), copy.deepcopy(underneath))
+        # trim old entries if too many
         if len(history) > MAX_HISTORY:
-            history.pop(0)
+            oldest = min(history.keys())
+            del history[oldest]
 
-    def restore_snapshot(idx):
-        """Restore state from history."""
+    def restore_snapshot(target_step):
+        """Restore state from history by step number."""
         nonlocal grid, agents, underneath, step, total_spawned, peak_pop
+        if target_step not in history:
+            return False
         import copy
-        g, ag, und = history[idx]
+        g, ag, und = history[target_step]
         grid[:] = copy.deepcopy(g)
         agents.clear()
         agents.extend(copy.deepcopy(ag))
         underneath.clear()
         underneath.update(copy.deepcopy(und))
-        step = idx
-        # recalc stats
+        step = target_step
         total_spawned = max(len(agents), 1)
         peak_pop = max(len(agents), 1)
+        return True
 
     def reset_level():
         nonlocal grid, agents, underneath, walls_start, paused, step, total_spawned, peak_pop, place_agent_pos
@@ -3074,6 +3137,7 @@ async def main():
         total_spawned = max(len(agents), 1)
         peak_pop = max(len(agents), 1)
         history.clear()
+        step = 0
         save_snapshot()  # save initial state as step 0
 
     def change_level(new_idx):
@@ -3491,30 +3555,32 @@ async def main():
                             paused = not paused
                             if sounds and not paused:
                                 sounds.play_start()
-                        elif event.key == pygame.K_RIGHT and paused:
-                            # step forward one tick
-                            if step < len(history) - 1:
-                                # we have a future snapshot (rewound earlier)
-                                restore_snapshot(step + 1)
-                            else:
-                                # run one sim tick
-                                cur_level = LEVELS[level_idx % NUM_LEVELS]
-                                cur_evil = cur_level.get("evil_rules")
-                                wl = count_walls(grid, underneath)
-                                go = (wl > 0) and (len(agents) > 0 or step == 0) and (step < MAX_STEPS)
-                                if go:
-                                    agents, spawned, sim_events = sim_step(agents, grid, verbs_list, underneath, cur_evil)
-                                    step += 1
-                                    total_spawned += spawned
-                                    if len(agents) > peak_pop:
-                                        peak_pop = len(agents)
-                                    save_snapshot()
-                                    if sounds and sim_events["consumed"] > 0:
-                                        sounds.play_consume()
-                        elif event.key == pygame.K_LEFT and paused:
-                            # step backward one tick
-                            if step > 0 and len(history) > 1:
-                                restore_snapshot(step - 1)
+                        elif event.key == pygame.K_RIGHT:
+                            # step forward one tick (auto-pause if running)
+                            if not paused:
+                                paused = True
+                            # simulate one fresh tick
+                            cur_level = LEVELS[level_idx % NUM_LEVELS]
+                            cur_evil = cur_level.get("evil_rules")
+                            wl = count_walls(grid, underneath)
+                            go = (wl > 0) and (len(agents) > 0 or step == 0) and (step < MAX_STEPS)
+                            if go:
+                                agents, spawned, sim_events = sim_step(agents, grid, verbs_list, underneath, cur_evil)
+                                step += 1
+                                total_spawned += spawned
+                                if len(agents) > peak_pop:
+                                    peak_pop = len(agents)
+                                save_snapshot()
+                                if sounds and sim_events["consumed"] > 0:
+                                    sounds.play_consume()
+                        elif event.key == pygame.K_LEFT:
+                            # step backward one tick (auto-pause if running)
+                            if not paused:
+                                paused = True
+                            if step > 0:
+                                if not restore_snapshot(step - 1):
+                                    # no snapshot for step-1, try step 0
+                                    restore_snapshot(0)
                         elif event.key == pygame.K_r:
                             if testing_editor_level:
                                 reset_test_level()
