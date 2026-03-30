@@ -2808,10 +2808,12 @@ def draw_title_screen(screen, font, font_sm, font_lg, mouse_pos, tick):
     cta_lines = [
         "Design levels in the editor (E) and share codes on Discord!",
         "Best community levels get included — designers get free Steam copy.",
+        "Discord: discord.gg/zSGg59cX",
     ]
-    cta_y = WIN_H - 70
-    for cta_line in cta_lines:
-        cta = font_sm.render(cta_line, True, (70, 90, 110))
+    cta_y = WIN_H - 80
+    for i, cta_line in enumerate(cta_lines):
+        color = (100, 140, 220) if i == 2 else (70, 90, 110)
+        cta = font_sm.render(cta_line, True, color)
         screen.blit(cta, (cx - cta.get_width() // 2, cta_y))
         cta_y += 16
 
